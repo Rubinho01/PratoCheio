@@ -4,7 +4,15 @@
 
 ## Problema central
 
+Restaurantes, padarias e mercados descartam diariamente comida boa por falta de um canal rápido para repassá-la, enquanto ONGs e cozinhas comunitárias ficam sem alimento suficiente para atender quem precisa. Não existe hoje um jeito simples de avisar quem tem sobra para quem pode buscar — a comunicação depende de contato informal, o que faz o alimento vencer antes de chegar a alguém. O problema não é "falta um app de cadastro de doações": é que a informação sobre comida disponível não chega a tempo a quem poderia aproveitá-la, e o desperdício acontece justamente nessa janela entre "sobrou comida" e "alguém foi buscar".
+
 ## Incertezas
+
+- Não sabemos o volume real de doações que o piloto vai gerar por dia — não há nenhuma medição histórica, só a percepção de Marta.
+- Não sabemos se o gargalo real está no aviso (doador demora para publicar / ONG demora para ver) ou na coleta (ONG vê a tempo, mas não tem voluntário disponível para buscar). São problemas diferentes e pedem soluções diferentes.
+- Não sabemos quantos campos de cadastro um doador aceita preencher antes de desistir no meio do processo.
+- Não sabemos o nível mínimo de rastreabilidade que a vigilância sanitária vai de fato exigir para autorizar o piloto — o caso menciona a exigência, mas não o detalhe.
+- Não sabemos se a conexão instável dos voluntários entregadores (celular, na rua) vai inviabilizar alguma parte do fluxo pensado.
 
 ## Stakeholders
 | Stakeholder | Interesse | Influência | O que espera | Prioridade |
@@ -160,14 +168,60 @@ Dado que o doador informou a categoria, a quantidade e a validade, quando confir
 ## Riscos
 | Risco | Probabilidade | Impacto | Mitigação |
 |---|---|---|---|
+|Doação perecível expira antes de ser aceita/coletada, pois a notificação automática de proximidade foi cortada do escopo, aumentando o desperdício — contra o objetivo de impacto #2.|Média|Alto|Até 05/10, Rubem implementa um job que marca automaticamente doações expiradas (regra de negócio 2) e registra quantas expiraram sem coleta na 1ª semana do piloto, para validar se o problema é real.|
+|Duas ONGs tentam aceitar a mesma doação ao mesmo tempo (concorrência), violando a regra de reserva exclusiva do H0.|Baixa|Alto|Até 05/10, Silvio implementa transação atômica no aceite da doação e escreve um teste automatizado que simula dois aceites simultâneos para confirmar que só um vence.|
+
 
 ## Hipótese e experimento
 
+Acreditamos que o maior gargalo para a perda de alimentos doados é o tempo excessivo que leva entre a publicação da doação pelo doador e a aceitação por uma ONG.
+
+Saberemos que estávamos errados se a taxa de aceitação de doações por ONGs em até 2 horas for superior a 80% e, mesmo assim, mais de 15% dos alimentos perecíveis forem descartados por falta de coleta a tempo, até a data de 05/10. (Isso indicaria que o gargalo real não é a velocidade de comunicação/aceite, mas sim a capacidade de logística e transporte dos voluntários/ONGs).
+
+Como medimos:
+
+Através do registro do horário de publicação e horário do clique de "aceitar" da ONG.
+
+Através de uma planilha manual preenchida por 2 doadores parceiros do piloto, registrando o volume em kg de comida descartada ao final de cada dia no período do teste.
+
+Desenho do Experimento (Sem Necessidade de Software Pronto)
+Descrição do Teste: Antes mesmo de subir o sistema completo com backend/push, faremos um teste manual por 1 semana em um único bairro. Criaremos um grupo direto no WhatsApp/Telegram com 2 doadores (ex: um restaurante e uma padaria local) e 3 ONGs locais.
+
+Execução: O doador envia uma mensagem curta no grupo com tipo de comida, quantidade e validade em horas (exatos dados da H1/H7). A primeira ONG que responder "Aceito" garante a reserva.
+
+Custo/Recursos: R$ 0,00 e 0 horas de desenvolvimento de código complexo.
+
+O que ele valida: Valida a suposição da Marta sobre onde está o gargalo e mede a adesão dos doadores ao formulário mínimo de 3 campos antes de gastar recursos construindo dashboards ou alertas complexos.
+
 ## Decisão de análise
-- **Problema:**
-- **Alternativas:**
-- **Decisão e justificativa:**
-- **Riscos e limitações:**
+
+Problema:
+
+Definir qual é o escopo mínimo viável (História Zero — H0) para a primeira iteração do piloto, garantindo que o fluxo principal de doação e coleta aconteça na primeira semana sem travar o projeto por complexidade técnica ou falta de infraestrutura.
+
+Alternativas:
+
+Alternativa A (Fluxo Completo e Automatizado): Incluir no piloto o cadastro de usuários com autenticação, filtros avançados de busca por geolocalização (raio de 5 km), notificações push em tempo real para as ONGs e mapas/GPS integrados para os entregadores voluntários.
+
+O que se ganha: Maior automação, conveniência do usuário e experiência visual completa.
+
+O que se perde: Exige backend robusto, consome mais prazo e orçamento (que é próximo de zero) e falha em ambientes com conexão 3G/4G instável na rua.
+
+Alternativa B (Fatia Mínima Executável — H0 Simplificada): Limitar o piloto ao cadastro básico da doação com 3 campos obrigatórios (tipo, quantidade e validade) e aceitação simples com 1 clique em um feed consultável (pull), deixando de fora login, notificações push, mapas, upload de fotos e aprovação manual.
+
+O que se ganha: Entrega imediata, custo zero de infraestrutura complexa e funcionamento garantido em navegadores de celulares com sinal fraco.
+
+O que se perde: Automação de alertas em tempo real e conveniência de navegação por GPS direto na plataforma.
+
+Decisão e justificativa:
+
+Alternativa B. A decisão apoia-se diretamente no Objetivo de Impacto #1 (reduzir o tempo para que avisos cheguem às ONGs) e nas restrições do projeto (equipe pequena, prazo de poucas semanas e orçamento zero). Adicionar recursos como push e mapas aumentaria o risco de falhas técnicas na rua e atrasaria a entrega da primeira versão funcional (Marta exige um projeto funcional com alta prioridade). A simplificação garante que o alimento perecível seja publicado e reservado antes de estragar.
+
+Riscos e limitações:
+
+Risco de atraso no aceite: Sem notificações push em tempo real, as ONGs precisam consultar a lista manualmente, o que pode fazer com que doações perecíveis com janela curta expirarem antes de serem vistas.
+
+Sobrecarga de navegação externa: Sem GPS integrado na plataforma, os voluntários precisarão copiar o endereço e colar manualmente em aplicativos externos de mapa (ex: Google Maps), aumentando o esforço operacional da coleta na rua.
 
 ## Uso de IA
 O que geramos com IA, o que verificamos e o que alteramos.
