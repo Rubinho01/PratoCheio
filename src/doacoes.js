@@ -1,36 +1,76 @@
-// Regras de negócio das doações.
-// TODO (grupo): implementar conforme as histórias e os critérios de aceite da Unidade 1.
+// Regras de negócio da História Zero (H0)
 import * as repo from './repositorio.js';
 
-// História zero — "um doador publica uma doação".
-// Critério: tipo, quantidade e validade são obrigatórios.
-export async function criarDoacao({ tipo, quantidade, validade } = {}) {
-  if (!tipo || !quantidade || !validade) {
-    throw new Error('tipo, quantidade e validade são obrigatórios');
+// Valida campos de texto obrigatórios
+function textoObrigatorio(valor, nomeDoCampo) {
+  const texto = String(valor ?? '').trim();
+
+  if (!texto) {
+    throw new Error(`${nomeDoCampo} é obrigatório`);
   }
-  return repo.inserir({ tipo, quantidade, validade });
+
+  return texto;
 }
 
-// História zero — "uma ONG vê as doações disponíveis".
+// Valida a data de validade
+function validarData(valor) {
+  const validade = textoObrigatorio(valor, 'validade');
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(validade)) {
+    throw new Error('validade deve estar no formato AAAA-MM-DD');
+  }
+
+  return validade;
+}
+
+// H0 - Doador cadastra uma nova doação
+export async function criarDoacao({
+  tipo,
+  quantidade,
+  validade
+} = {}) {
+
+  return repo.inserir({
+    tipo: textoObrigatorio(tipo, 'tipo'),
+    quantidade: textoObrigatorio(quantidade, 'quantidade'),
+    validade: validarData(validade)
+  });
+}
+
+// H0 - ONG visualiza somente as doações disponíveis
 export async function listarDisponiveis() {
   return repo.listarDisponiveis();
 }
 
-// História zero — "uma ONG aceita uma doação".
-// Regra do caso: uma doação aceita não fica disponível para outra ONG.
+// H0 - ONG aceita uma doação
 export async function aceitar(id, ong) {
-  const doacao = await repo.buscarPorId(id);
-  if (!doacao) {
+
+  const idNumerico = Number(id);
+
+  if (!Number.isInteger(idNumerico) || idNumerico <= 0) {
+    throw new Error('doação inválida');
+  }
+
+  const nomeOng = textoObrigatorio(ong, 'ONG');
+
+  const existente = await repo.buscarPorId(idNumerico);
+
+  if (!existente) {
     throw new Error('doação não encontrada');
   }
-  if (doacao.status !== 'disponivel') {
-    throw new Error('doação já foi aceita');
+
+  if (existente.status !== 'disponivel') {
+    throw new Error('esta doação já foi aceita');
   }
- 
-  const atualizada = await repo.aceitar(id, ong);
+
+  const atualizada = await repo.aceitar(
+    idNumerico,
+    nomeOng
+  );
+
   if (!atualizada) {
-    // Entre a checagem acima e o UPDATE, outra ONG venceu a corrida.
-    throw new Error('doação já foi aceita');
+    throw new Error('esta doação já foi aceita');
   }
+
   return atualizada;
 }

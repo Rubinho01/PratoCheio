@@ -1,77 +1,1263 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="pt-BR">
+
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>Prato Cheio</title>
+
   <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; max-width: 40rem; }
-    h1 { font-size: 1.3rem; }
-    fieldset { border: 1px solid #ccc; border-radius: .5rem; margin-bottom: 1rem; }
-    label { display: block; margin: .5rem 0 .2rem; font-size: .9rem; }
-    input, button { font-size: 1rem; padding: .6rem; width: 100%; box-sizing: border-box; }
-    button { margin-top: .8rem; cursor: pointer; }
-    li { border: 1px solid #ddd; border-radius: .5rem; padding: .6rem; margin-bottom: .5rem; list-style: none; }
-    ul { padding: 0; }
-  </style>
-</head>
-<body>
-  <h1>Prato Cheio</h1>
 
-  <fieldset>
-    <legend>Publicar doação</legend>
-    <label for="tipo">Tipo de alimento</label>
-    <input id="tipo" placeholder="Ex.: sopa, pão, frutas">
-    <label for="quantidade">Quantidade</label>
-    <input id="quantidade" placeholder="Ex.: 10 porções">
-    <label for="validade">Validade / retirar até</label>
-    <input id="validade" type="date">
-    <button id="publicar">Publicar</button>
-  </fieldset>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  <h2>Doações disponíveis</h2>
-  <ul id="lista"></ul>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f7f4;
+      color: #1f3526;
+    }
 
-  <script>
-    async function carregar() {
-      const res = await fetch('/api/doacoes');
-      const doacoes = await res.json();
-      const lista = document.getElementById('lista');
-      lista.innerHTML = doacoes.length
-        ? ''
-        : '<li>Nenhuma doação disponível.</li>';
-      for (const d of doacoes) {
-        const li = document.createElement('li');
-        li.textContent = `${d.tipo} — ${d.quantidade} (até ${d.validade}) `;
-        const botao = document.createElement('button');
-        botao.textContent = 'Aceitar';
-        botao.onclick = async () => {
-          await fetch(`/api/doacoes/${d.id}/aceitar`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ong: 'Minha ONG' })
-          });
-          carregar();
-        };
-        li.appendChild(botao);
-        lista.appendChild(li);
+    /* CABEÇALHO */
+
+    header {
+      background: white;
+      border-bottom: 1px solid #dde7df;
+    }
+
+    .header-container {
+      max-width: 1150px;
+      margin: auto;
+      padding: 18px 25px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      font-size: 20px;
+      font-weight: bold;
+
+      color: #246b42;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 10px;
+
+      background: #2e7d4f;
+      color: white;
+
+      font-size: 22px;
+    }
+
+    .h0 {
+      background: #e6f3ea;
+      color: #2e7d4f;
+
+      padding: 8px 14px;
+
+      border-radius: 20px;
+
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    /* CONTEÚDO */
+
+    main {
+      max-width: 1150px;
+
+      margin: auto;
+
+      padding: 50px 25px;
+    }
+
+    /* HERO */
+
+    .hero {
+      display: flex;
+
+      justify-content: space-between;
+      align-items: end;
+
+      gap: 30px;
+
+      margin-bottom: 35px;
+    }
+
+    .tag {
+      display: inline-block;
+
+      background: #dff1e5;
+      color: #246b42;
+
+      padding: 8px 12px;
+
+      border-radius: 20px;
+
+      font-size: 12px;
+      font-weight: bold;
+
+      margin-bottom: 15px;
+    }
+
+    h1 {
+      font-size: 48px;
+
+      max-width: 700px;
+
+      line-height: 1.05;
+
+      margin-bottom: 15px;
+    }
+
+    .hero-text {
+      color: #617067;
+
+      max-width: 700px;
+
+      font-size: 16px;
+
+      line-height: 1.6;
+    }
+
+    .contador-card {
+      background: white;
+
+      border: 1px solid #dde7df;
+
+      border-radius: 16px;
+
+      padding: 20px;
+
+      min-width: 210px;
+
+      box-shadow:
+        0 8px 25px
+        rgba(0, 0, 0, 0.05);
+    }
+
+    .contador-card span {
+      color: #68766d;
+
+      font-size: 13px;
+    }
+
+    #contador {
+      display: block;
+
+      color: #2e7d4f;
+
+      font-size: 42px;
+
+      margin-top: 5px;
+    }
+
+    /* GRID */
+
+    .conteudo {
+      display: grid;
+
+      grid-template-columns:
+        380px 1fr;
+
+      gap: 25px;
+
+      align-items: start;
+    }
+
+    /* CARDS */
+
+    .card {
+      background: white;
+
+      border: 1px solid #dde7df;
+
+      border-radius: 16px;
+
+      overflow: hidden;
+
+      box-shadow:
+        0 10px 30px
+        rgba(38, 78, 50, 0.07);
+    }
+
+    .card-header {
+      padding: 24px 24px 10px;
+    }
+
+    .card-header h2 {
+      font-size: 21px;
+
+      margin-bottom: 7px;
+    }
+
+    .card-header p {
+      color: #6d7a71;
+
+      font-size: 14px;
+
+      line-height: 1.5;
+    }
+
+    /* FORMULÁRIO */
+
+    form {
+      padding: 10px 24px 25px;
+    }
+
+    .campo {
+      margin-top: 16px;
+    }
+
+    label {
+      display: block;
+
+      font-size: 13px;
+
+      font-weight: bold;
+
+      margin-bottom: 7px;
+    }
+
+    input {
+      width: 100%;
+
+      padding: 13px 14px;
+
+      border: 1px solid #cad8cd;
+
+      border-radius: 10px;
+
+      font-size: 14px;
+
+      outline: none;
+
+      transition: 0.2s;
+    }
+
+    input:focus {
+      border-color: #2e7d4f;
+
+      box-shadow:
+        0 0 0 3px
+        rgba(46, 125, 79, 0.10);
+    }
+
+    .botao-publicar {
+      width: 100%;
+
+      padding: 14px;
+
+      margin-top: 22px;
+
+      border: none;
+
+      border-radius: 10px;
+
+      background: #2e7d4f;
+
+      color: white;
+
+      font-size: 14px;
+
+      font-weight: bold;
+
+      cursor: pointer;
+    }
+
+    .botao-publicar:hover {
+      background: #235f3d;
+    }
+
+    .botao-publicar:disabled {
+      opacity: 0.6;
+
+      cursor: not-allowed;
+    }
+
+    /* ONG */
+
+    .ong-container {
+      margin: 10px 24px 20px;
+
+      padding: 15px;
+
+      border-radius: 12px;
+
+      background: #f1f6f2;
+    }
+
+    .ong-container small {
+      display: block;
+
+      color: #6d7a71;
+
+      margin-top: 7px;
+
+      font-size: 12px;
+
+      line-height: 1.4;
+    }
+
+    /* LISTA */
+
+    #lista {
+      padding: 0 24px 25px;
+    }
+
+    .doacao {
+      display: flex;
+
+      align-items: center;
+      justify-content: space-between;
+
+      gap: 15px;
+
+      border: 1px solid #dde7df;
+
+      border-radius: 12px;
+
+      padding: 17px;
+
+      margin-bottom: 12px;
+
+      transition: 0.2s;
+    }
+
+    .doacao:hover {
+      border-color: #b4cdbb;
+
+      transform: translateY(-2px);
+
+      box-shadow:
+        0 7px 20px
+        rgba(0, 0, 0, 0.05);
+    }
+
+    .doacao h3 {
+      margin-bottom: 9px;
+
+      font-size: 17px;
+
+      text-transform: capitalize;
+    }
+
+    .informacoes {
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 7px;
+    }
+
+    .info {
+      background: #f1f4f2;
+
+      color: #5a685f;
+
+      padding: 6px 9px;
+
+      border-radius: 20px;
+
+      font-size: 12px;
+    }
+
+    .validade {
+      background: #fff4e6;
+
+      color: #8a5515;
+    }
+
+    .botao-aceitar {
+      padding: 11px 17px;
+
+      border: none;
+
+      border-radius: 9px;
+
+      background: #dff1e5;
+
+      color: #246b42;
+
+      font-weight: bold;
+
+      cursor: pointer;
+    }
+
+    .botao-aceitar:hover {
+      background: #c7e5d0;
+    }
+
+    .botao-aceitar:disabled {
+      opacity: 0.6;
+    }
+
+    /* ESTADO VAZIO */
+
+    .vazio {
+      text-align: center;
+
+      padding: 35px 15px;
+
+      color: #718078;
+
+      border: 1px dashed #c7d6ca;
+
+      border-radius: 12px;
+
+      background: #fafcfa;
+    }
+
+    .vazio-icon {
+      font-size: 32px;
+
+      margin-bottom: 10px;
+    }
+
+    .vazio strong {
+      display: block;
+
+      color: #33483a;
+
+      margin-bottom: 5px;
+    }
+
+    /* MENSAGENS */
+
+    #mensagem {
+      padding: 0 24px;
+
+      font-size: 13px;
+
+      min-height: 20px;
+    }
+
+    .sucesso {
+      color: #246b42;
+    }
+
+    .erro {
+      color: #b42318;
+    }
+
+    /* TOAST */
+
+    #toast {
+      position: fixed;
+
+      bottom: 25px;
+      right: 25px;
+
+      background: #23412d;
+
+      color: white;
+
+      padding: 14px 18px;
+
+      border-radius: 10px;
+
+      opacity: 0;
+
+      pointer-events: none;
+
+      transform:
+        translateY(15px);
+
+      transition: 0.3s;
+
+      box-shadow:
+        0 8px 30px
+        rgba(0, 0, 0, 0.20);
+    }
+
+    #toast.mostrar {
+      opacity: 1;
+
+      transform:
+        translateY(0);
+    }
+
+    #toast.toast-erro {
+      background: #8c2c20;
+    }
+
+    footer {
+      text-align: center;
+
+      color: #7b8880;
+
+      font-size: 12px;
+
+      padding-top: 35px;
+    }
+
+    /* RESPONSIVO */
+
+    @media (max-width: 800px) {
+
+      .hero {
+        display: block;
+      }
+
+      .contador-card {
+        margin-top: 20px;
+
+        max-width: 250px;
+      }
+
+      .conteudo {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 38px;
       }
     }
 
-    document.getElementById('publicar').onclick = async () => {
-      await fetch('/api/doacoes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: document.getElementById('tipo').value,
-          quantidade: document.getElementById('quantidade').value,
-          validade: document.getElementById('validade').value
-        })
-      });
-      carregar();
-    };
+    @media (max-width: 500px) {
 
-    carregar();
-  </script>
+      .h0 {
+        display: none;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      main {
+        padding:
+          35px 15px;
+      }
+
+      .doacao {
+        display: block;
+      }
+
+      .botao-aceitar {
+        width: 100%;
+
+        margin-top: 15px;
+      }
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<header>
+
+  <div class="header-container">
+
+    <div class="logo">
+
+      <div class="logo-icon">
+        ♻
+      </div>
+
+      Prato Cheio
+
+    </div>
+
+    <div class="h0">
+      História H0
+    </div>
+
+  </div>
+
+</header>
+
+
+<main>
+
+  <section class="hero">
+
+    <div>
+
+      <div class="tag">
+        DOAR RÁPIDO · EVITAR DESPERDÍCIO
+      </div>
+
+      <h1>
+        Comida boa encontra quem precisa.
+      </h1>
+
+      <p class="hero-text">
+
+        Cadastre uma doação de alimento
+        com validade e disponibilize
+        imediatamente para uma ONG.
+
+        Quando uma ONG aceitar,
+        a doação deixa de ficar
+        disponível para as demais.
+
+      </p>
+
+    </div>
+
+    <div class="contador-card">
+
+      <span>
+        Doações disponíveis
+      </span>
+
+      <strong id="contador">
+        0
+      </strong>
+
+    </div>
+
+  </section>
+
+
+  <section class="conteudo">
+
+    <!-- DOADOR -->
+
+    <div class="card">
+
+      <div class="card-header">
+
+        <h2>
+          Publicar uma doação
+        </h2>
+
+        <p>
+          Informe os dados básicos
+          do alimento disponível.
+        </p>
+
+      </div>
+
+      <div id="mensagem"></div>
+
+      <form id="formDoacao">
+
+        <div class="campo">
+
+          <label for="tipo">
+            Tipo de alimento
+          </label>
+
+          <input
+            id="tipo"
+            type="text"
+            placeholder="Ex.: Pães, frutas, marmitas"
+            maxlength="80"
+            required
+          >
+
+        </div>
+
+
+        <div class="campo">
+
+          <label for="quantidade">
+            Quantidade
+          </label>
+
+          <input
+            id="quantidade"
+            type="text"
+            placeholder="Ex.: 20 unidades"
+            maxlength="80"
+            required
+          >
+
+        </div>
+
+
+        <div class="campo">
+
+          <label for="validade">
+            Retirar até
+          </label>
+
+          <input
+            id="validade"
+            type="date"
+            required
+          >
+
+        </div>
+
+
+        <button
+          id="publicar"
+          class="botao-publicar"
+          type="submit"
+        >
+
+          Publicar doação
+
+        </button>
+
+      </form>
+
+    </div>
+
+
+    <!-- ONG -->
+
+    <div class="card">
+
+      <div class="card-header">
+
+        <h2>
+          Doações disponíveis
+        </h2>
+
+        <p>
+          A ONG pode visualizar
+          e aceitar uma doação disponível.
+        </p>
+
+      </div>
+
+
+      <div class="ong-container">
+
+        <label for="ong">
+          Nome da ONG
+        </label>
+
+        <input
+          id="ong"
+          type="text"
+          placeholder="Ex.: ONG Esperança"
+          maxlength="100"
+        >
+
+        <small>
+          Login e cadastro de usuários
+          não fazem parte da H0.
+        </small>
+
+      </div>
+
+
+      <div id="lista"></div>
+
+    </div>
+
+  </section>
+
+
+  <footer>
+
+    Prato Cheio ·
+    Protótipo acadêmico ·
+    História de Usuário H0
+
+  </footer>
+
+</main>
+
+
+<div id="toast"></div>
+
+
+<script>
+
+  const lista =
+    document.getElementById('lista');
+
+  const contador =
+    document.getElementById('contador');
+
+  const form =
+    document.getElementById('formDoacao');
+
+  const mensagem =
+    document.getElementById('mensagem');
+
+  const botaoPublicar =
+    document.getElementById('publicar');
+
+  const inputOng =
+    document.getElementById('ong');
+
+  const validadeInput =
+    document.getElementById('validade');
+
+  const toast =
+    document.getElementById('toast');
+
+
+  // Não permite selecionar data anterior a hoje
+
+  validadeInput.min =
+    new Date()
+      .toISOString()
+      .split('T')[0];
+
+
+  // Exibe notificação
+
+  function mostrarToast(
+    texto,
+    erro = false
+  ) {
+
+    toast.textContent = texto;
+
+    toast.className =
+      erro
+        ? 'mostrar toast-erro'
+        : 'mostrar';
+
+    clearTimeout(
+      mostrarToast.timer
+    );
+
+    mostrarToast.timer =
+      setTimeout(() => {
+
+        toast.className = '';
+
+      }, 3000);
+
+  }
+
+
+  // Formata data
+
+  function formatarData(data) {
+
+    const [
+      ano,
+      mes,
+      dia
+    ] = data.split('-');
+
+    return `${dia}/${mes}/${ano}`;
+
+  }
+
+
+  // Trata resposta da API
+
+  async function processarResposta(
+    resposta
+  ) {
+
+    const dados =
+      await resposta
+        .json()
+        .catch(() => ({}));
+
+    if (!resposta.ok) {
+
+      throw new Error(
+        dados.erro ||
+        'Não foi possível concluir a operação.'
+      );
+
+    }
+
+    return dados;
+
+  }
+
+
+  // Cria visualmente uma doação
+
+  function criarCard(doacao) {
+
+    const card =
+      document.createElement('div');
+
+    card.className =
+      'doacao';
+
+
+    const dados =
+      document.createElement('div');
+
+
+    const titulo =
+      document.createElement('h3');
+
+    titulo.textContent =
+      doacao.tipo;
+
+
+    const informacoes =
+      document.createElement('div');
+
+    informacoes.className =
+      'informacoes';
+
+
+    const quantidade =
+      document.createElement('span');
+
+    quantidade.className =
+      'info';
+
+    quantidade.textContent =
+      `Quantidade: ${doacao.quantidade}`;
+
+
+    const validade =
+      document.createElement('span');
+
+    validade.className =
+      'info validade';
+
+    validade.textContent =
+      `Retirar até ${formatarData(doacao.validade)}`;
+
+
+    informacoes.append(
+      quantidade,
+      validade
+    );
+
+
+    dados.append(
+      titulo,
+      informacoes
+    );
+
+
+    const botao =
+      document.createElement('button');
+
+    botao.className =
+      'botao-aceitar';
+
+    botao.textContent =
+      'Aceitar';
+
+
+    botao.addEventListener(
+      'click',
+      async () => {
+
+        const ong =
+          inputOng.value.trim();
+
+
+        if (!ong) {
+
+          mostrarToast(
+            'Informe o nome da ONG.',
+            true
+          );
+
+          inputOng.focus();
+
+          return;
+        }
+
+
+        botao.disabled = true;
+
+        botao.textContent =
+          'Aceitando...';
+
+
+        try {
+
+          const resposta =
+            await fetch(
+              `/api/doacoes/${doacao.id}/aceitar`,
+              {
+                method: 'POST',
+
+                headers: {
+                  'Content-Type':
+                    'application/json'
+                },
+
+                body:
+                  JSON.stringify({
+                    ong
+                  })
+              }
+            );
+
+
+          await processarResposta(
+            resposta
+          );
+
+
+          mostrarToast(
+            `Doação aceita por ${ong}.`
+          );
+
+
+          await carregarDoacoes();
+
+        }
+        catch (erro) {
+
+          mostrarToast(
+            erro.message,
+            true
+          );
+
+          botao.disabled = false;
+
+          botao.textContent =
+            'Aceitar';
+
+        }
+
+      }
+    );
+
+
+    card.append(
+      dados,
+      botao
+    );
+
+
+    return card;
+
+  }
+
+
+  // Busca as doações disponíveis
+
+  async function carregarDoacoes() {
+
+    lista.innerHTML =
+      `
+      <div class="vazio">
+        Carregando doações...
+      </div>
+      `;
+
+
+    try {
+
+      const resposta =
+        await fetch(
+          '/api/doacoes'
+        );
+
+
+      const doacoes =
+        await processarResposta(
+          resposta
+        );
+
+
+      lista.innerHTML = '';
+
+
+      contador.textContent =
+        doacoes.length;
+
+
+      if (
+        doacoes.length === 0
+      ) {
+
+        lista.innerHTML =
+          `
+          <div class="vazio">
+
+            <div class="vazio-icon">
+              🍽️
+            </div>
+
+            <strong>
+              Nenhuma doação disponível
+            </strong>
+
+            Assim que uma nova doação
+            for cadastrada,
+            ela aparecerá aqui.
+
+          </div>
+          `;
+
+        return;
+
+      }
+
+
+      doacoes.forEach(
+        doacao => {
+
+          lista.appendChild(
+            criarCard(doacao)
+          );
+
+        }
+      );
+
+    }
+    catch (erro) {
+
+      contador.textContent =
+        '—';
+
+
+      lista.innerHTML =
+        `
+        <div class="vazio">
+
+          <strong>
+            Erro ao carregar
+          </strong>
+
+          ${erro.message}
+
+        </div>
+        `;
+
+    }
+
+  }
+
+
+  // Cadastro da doação
+
+  form.addEventListener(
+    'submit',
+    async evento => {
+
+      evento.preventDefault();
+
+
+      mensagem.textContent = '';
+
+      mensagem.className = '';
+
+
+      const dados = {
+
+        tipo:
+          document
+            .getElementById('tipo')
+            .value
+            .trim(),
+
+        quantidade:
+          document
+            .getElementById('quantidade')
+            .value
+            .trim(),
+
+        validade:
+          validadeInput.value
+
+      };
+
+
+      botaoPublicar.disabled =
+        true;
+
+      botaoPublicar.textContent =
+        'Publicando...';
+
+
+      try {
+
+        const resposta =
+          await fetch(
+            '/api/doacoes',
+            {
+              method: 'POST',
+
+              headers: {
+                'Content-Type':
+                  'application/json'
+              },
+
+              body:
+                JSON.stringify(dados)
+            }
+          );
+
+
+        await processarResposta(
+          resposta
+        );
+
+
+        form.reset();
+
+
+        mensagem.textContent =
+          'Doação publicada com sucesso.';
+
+        mensagem.className =
+          'sucesso';
+
+
+        mostrarToast(
+          'Doação publicada com sucesso!'
+        );
+
+
+        await carregarDoacoes();
+
+      }
+      catch (erro) {
+
+        mensagem.textContent =
+          erro.message;
+
+        mensagem.className =
+          'erro';
+
+
+        mostrarToast(
+          erro.message,
+          true
+        );
+
+      }
+      finally {
+
+        botaoPublicar.disabled =
+          false;
+
+        botaoPublicar.textContent =
+          'Publicar doação';
+
+      }
+
+    }
+  );
+
+
+  carregarDoacoes();
+
+</script>
+
+
 </body>
+
 </html>
