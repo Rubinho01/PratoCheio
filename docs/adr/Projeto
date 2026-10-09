@@ -1,0 +1,57 @@
+# Documento de Projeto — Prato Cheio
+
+*Trabalho 2 · máximo 4 páginas (fora diagramas) · entrega na Aula 10*
+
+## Decisões de projeto
+| # | Decisão | Alternativas | Requisito/risco da Análise que a motiva |
+|---|---|---|---|
+
+## Tabela de trade-offs (uma decisão em detalhe)
+| Critério | Alternativa A | Alternativa B |
+|---|---|---|
+
+## Diagramas
+(contexto + dados ou componentes — em `docs/` ou como imagem)
+
+## ADRs
+Ver `docs/adr/`. Modelo: [ADR 0000](adr/0000-modelo-adr.md).
+
+- [ADR 0001 — Migração de SQLite para PostgreSQL (na Unidade 3)](adr/0001-migracao-sqlite-para-postgres.md) — proposto, 2026-10-08. Revisado em 2026-10-08 diante do pedido de cópias mensais da vigilância sanitária: a decisão continua.
+
+## Requisitos não-funcionais
+| Requisito | Como afeta o design |
+|---|---|
+|RNF1 — Cadastro rápido. Quando o doador publica pelo celular em 3G/4G, o sistema grava a doação e responde 201. Sem tipo, quantidade ou validade, responde 400. Medido por média de até 60 s por cadastro, cronometrada com os 2 doadores do piloto.|Decisão: formulário de 3 campos, sem login. Custo: a Vigilância Sanitária perde lote, temperatura e origem. |
+|Nada se perde ao reiniciar. Quando o servidor reinicia, o sistema mantém todas as doações já publicadas e aceitas. Medido por teste manual: publicar, reiniciar, listar e ver a doação.|Decisão: persistência em banco, nunca em memória. Custo: os testes usam banco em memória e não provam isso. |
+|Lista rápida no volume do piloto. Quando a ONG consulta a lista com 30 doações disponíveis, o sistema responde em até 500 ms. Medido por teste que cria 200 doações e cronometra o GET /api/doacoes. Volume e metas são propostas, pois a Análise não tem medição. | Decisão: lista sem paginação e sem índice em status. Custo: se o volume crescer demais, será preciso paginar e indexar. Paga a ONG, com lista lenta, e quem refatorar depois. |
+
+## Critérios de validação do projeto
+
+Cada critério tem resposta **sim** ou **não**, dada por quem olha o repositório. A coluna *Resposta* é preenchida pelo revisor, não por quem escreveu.
+
+| # | Critério (sim ou não) | Fonte | Resposta |
+|:--:|---|---|:--:|
+| 1 | O ADR da migração existe em `docs/adr/` com número `0001` e tem **Data** e **Status** no cabeçalho? | `docs/adr/0001-migracao-sqlite-para-postgres.md`, cabeçalho | | SIM
+| 2 | O ADR está listado em `## ADRs` com um link que abre o arquivo? | `docs/projeto.md`, § ADRs | | SIM
+| 3 | O ADR compara alternativas que incluem "ficar em SQLite" e as três formas de subir o PostgreSQL (instalado, contêiner, serviço), cada uma com prós e contras? | ADR 0001, § Alternativas consideradas | | SIM
+| 4 | A consequência negativa do ADR diz o custo concreto e **quem paga**? | ADR 0001, § Consequências | | SIM
+| 5 | **(migração)** O ADR traz comando de validação com resultado numérico, e `npm test` hoje imprime esse mesmo ponto de partida (`6 passed`)? | ADR 0001, § Critério de validação, item 1; saída de `npm test` | | SIM
+| 6 | **(migração)** `node:sqlite` é importado somente em `src/db.js`, e `query()` devolve `{ rows }`? | `src/db.js`; busca por `node:sqlite` em `src/` | | SIM
+| 7 | O aceite é barrado pelo banco, com `UPDATE ... AND status = 'disponivel'` em `aceitar`? | `src/repositorio.js`, função `aceitar` | | SIM
+| 8 | Existe teste que recusa o segundo aceite da mesma doação (resposta `400`)? | `tests/doacoes.test.js`, "recusa aceitar uma doação que já foi aceita por outra ONG" | | SIM
+| 9 | Cada RNF traz número ou observação **e** o procedimento que o mede? | `docs/projeto.md`, § Requisitos não-funcionais, coluna *Requisito* | | SIM
+| 10 | Pelo menos um RNF nasce de uma restrição do caso (conexão 3G/4G, orçamento, equipe, vigilância sanitária)? | `docs/projeto.md`, § Requisitos não-funcionais; `docs/analise.md`, § Incertezas | | SIM
+| 11 | A mudança da vigilância sanitária está em `## Revisão — 2026-10-08` com o que mudou, o que cai, o que continua e por quê? | ADR 0001, § Revisão | | SIM
+| 12 | O commit que adicionou a Revisão só acrescentou linhas, sem remover nem alterar o texto anterior do ADR? | `git log -p --follow -- docs/adr/0001-migracao-sqlite-para-postgres.md` | | SIM
+
+### Fragilidades apontadas pelo revisor interno
+
+**Revisor:** Eduardo de Oliveira
+
+O RNF1 mede com “os 2 doadores do piloto”, mas o piloto ainda não rodou.
+O RNF2 usa teste manual e admite que os testes não provam o requisito.
+O RNF3 fala em 30 doações e mede com 200.
+
+A Revisão deixa a hospedagem do piloto sem dono: diz que precisa de um ADR próprio, que ainda não existe. O responsável pela cópia mensal e o prazo de 15 minutos também são propostas minhas, não medições.
+
+## Uso de IA
