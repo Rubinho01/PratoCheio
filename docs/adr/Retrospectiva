@@ -1,0 +1,30 @@
+Retrospectiva da Iteração 2
+Data: 08/10/2026 · Grupo: Eduardo de Oliveira, Nicolas Eduardo, Rubem Krüger, Silvio de Avila, Thomas Pruner
+O que decidimos nesta iteração
+Migrar para PostgreSQL só na Unidade 3 e subir o banco em contêiner de versão fixada (ADR 0001), em vez de migrar já, instalar em cada máquina ou usar um serviço gerenciado.
+Manter essa decisão quando a vigilância sanitária passou a pedir cópias mensais do banco (Revisão no mesmo ADR). Em troca, a cópia já passa a sair do SQLite com VACUUM INTO, a migração da Unidade 3 terá de provar que nenhuma doação se perdeu, e a hospedagem do piloto vira decisão própria.
+Escrever requisitos não-funcionais e critérios de validação com número, comando e fonte, deixando a avaliação para um integrante que não os escreveu.
+O que funcionou
+O contrato query() devolvendo { rows } em src/db.js deixou medir o tamanho da migração: só esse arquivo importa node:sqlite.
+Dividir o Trabalho 2 por itens (ADR e requisitos de um lado; revisão, checklist e retrospectiva de outro) deixou as duas frentes andarem ao mesmo tempo.
+O que mudaríamos
+Ao juntar as duas frentes, o ADR estava sem a seção de critério de validação, sem o número 0001 no nome do arquivo e fora da lista de ## ADRs. Daqui para frente, quem recebe o trabalho do outro confere contra o enunciado antes de encadear a própria parte.
+O README fala em CI (.github/workflows/), mas essa pasta não existe no repositório, e o ADR conta com o CI. Precisamos criá-lo antes da migração.
+dados.sqlite está versionado em repositório público. Hoje tem 0 linhas, mas com as cópias mensais isso precisa mudar.
+Próximos passos (para a próxima iteração)
+Refatorar src/db.js e src/repositorio.js para PostgreSQL, criar o docker-compose.yml e o workflow de CI com services: postgres, e escrever os 2 testes novos do critério de validação (aceites simultâneos e paridade de tipos).
+Tirar dados.sqlite do Git, criar copias/ no .gitignore e nomear quem faz a cópia mensal.
+Escrever o ADR da hospedagem do piloto e combinar com a vigilância o formato da cópia (banco restaurável, SQL ou planilha).
+Trocar o Status do ADR 0001 de proposto para aceito quando o grupo aprovar.
+Autoavaliação de contribuição
+
+Distribuam 100 pontos entre os integrantes conforme a contribuição desta iteração (inclui código, análise, documentação, revisão de PR). Cada integrante assina.
+
+Integrante	Pontos	O que fez de mais relevante	Assinatura
+Eduardo de Oliveira		33 Ajudou na construção do Projeto
+Nicolas Eduardo			0
+Rubem Krüger			33 Ajudou na construção do Projeto
+Silvio de Avila			33 Ajudou na construção do Projeto
+Thomas Pruner			0
+
+Total: 100
