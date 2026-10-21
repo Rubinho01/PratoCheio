@@ -27,14 +27,24 @@ function validarData(valor) {
 export async function criarDoacao({
   tipo,
   quantidade,
-  validade
+  validade,
+  doador
 } = {}) {
+
+
+  const nomeDoador = String(doador ?? '').trim() || null;
 
   return repo.inserir({
     tipo: textoObrigatorio(tipo, 'tipo'),
     quantidade: textoObrigatorio(quantidade, 'quantidade'),
-    validade: validarData(validade)
+    validade: validarData(validade),
+    doador: nomeDoador
   });
+}
+
+export async function listarDoDoador(doador) {
+  const nomeDoador = textoObrigatorio(doador, 'doador');
+  return repo.listarPorDoador(nomeDoador);
 }
 
 // H0 - ONG visualiza somente as doações disponíveis

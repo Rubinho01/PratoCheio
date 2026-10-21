@@ -41,9 +41,19 @@ export async function migrar() {
       validade    TEXT NOT NULL,
       status      TEXT NOT NULL DEFAULT 'disponivel',
       ong         TEXT,
-      criada_em   TEXT NOT NULL DEFAULT (datetime('now'))
+      criada_em   TEXT NOT NULL DEFAULT (datetime('now')),
+      doador      TEXT
     )
   `);
+
+  const colunas = conexao().prepare('PRAGMA table_info(doacoes)').all();
+  if (!colunas.some((coluna) => coluna.name === 'doador')) {
+    conexao().exec('ALTER TABLE doacoes ADD COLUMN doador TEXT');
+  }
+
+  conexao().exec(
+    'CREATE INDEX IF NOT EXISTS idx_doacoes_doador ON doacoes (doador)'
+  );
 }
 
 /** Apaga todos os dados. Usado pelos testes. */

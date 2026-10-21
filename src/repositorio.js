@@ -5,7 +5,8 @@ import { query } from './db.js';
 export async function inserir({
   tipo,
   quantidade,
-  validade
+  validade,
+  doador = null
 }) {
 
   const { rows } = await query(
@@ -13,19 +14,37 @@ export async function inserir({
     INSERT INTO doacoes (
       tipo,
       quantidade,
-      validade
+      validade,
+      doador
     )
-    VALUES (?, ?, ?)
+    VALUES (?, ?, ?, ?)
     RETURNING *
     `,
     [
       tipo,
       quantidade,
-      validade
+      validade,
+      doador
     ]
   );
 
   return rows[0];
+}
+
+export async function listarPorDoador(doador) {
+
+  const { rows } = await query(
+    `
+    SELECT *
+    FROM doacoes
+    WHERE doador = ?
+    ORDER BY criada_em DESC,
+             id DESC
+    `,
+    [doador]
+  );
+
+  return rows;
 }
 
 // Lista somente as doações disponíveis
