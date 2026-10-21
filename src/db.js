@@ -42,13 +42,17 @@ export async function migrar() {
       status      TEXT NOT NULL DEFAULT 'disponivel',
       ong         TEXT,
       criada_em   TEXT NOT NULL DEFAULT (datetime('now')),
-      doador      TEXT
+      doador      TEXT,
+      endereco_retirada TEXT
     )
   `);
 
   const colunas = conexao().prepare('PRAGMA table_info(doacoes)').all();
   if (!colunas.some((coluna) => coluna.name === 'doador')) {
     conexao().exec('ALTER TABLE doacoes ADD COLUMN doador TEXT');
+  }
+  if (!colunas.some((coluna) => coluna.name === 'endereco_retirada')) {
+    conexao().exec('ALTER TABLE doacoes ADD COLUMN endereco_retirada TEXT');
   }
 
   conexao().exec(

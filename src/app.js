@@ -26,6 +26,14 @@ export function criarApp() {
     }
   });
 
+  app.get('/api/doacoes/:id/retirada', async (req, res) => {
+    try {
+      res.json(await doacoes.consultarRetirada(req.params.id, req.query.ong));
+    } catch (erro) {
+      res.status(400).json({ erro: erro.message });
+    }
+  });
+
   app.post('/api/doacoes', async (req, res) => {
     try {
       res.status(201).json(await doacoes.criarDoacao(req.body));
@@ -41,7 +49,6 @@ export function criarApp() {
       res.status(400).json({ erro: erro.message });
     }
   });
-
 
   app.post('/api/doacoes/:id/cancelar', async (req, res) => {
     try {
