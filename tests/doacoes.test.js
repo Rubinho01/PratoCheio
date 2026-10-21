@@ -102,6 +102,75 @@ describe('aceitar uma doação', () => {
     expect(res.body.erro).toBeTruthy();
   });
 });
+
+describe('doador vê a situação das próprias doações', () => {
+  const publicar = (doador, extra = {}) =>
+    request(app)
+      .post('/api/doacoes')
+      .send({
+        tipo: 'Sopa',
+        quantidade: '10 porções',
+        validade: '2026-08-01',
+        doador,
+        ...extra
+      });
+
+  const minhas = (doador) =>
+    request(app).get('/api/doacoes/minhas').query({ doador });
+
+  it('mostra a doação ainda não aceita como disponível, sem ONG', async () => {
+    await publicar('Padaria do Zé');
+
+    const res = await minhas('Padaria do Zé');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].tipo).toBe('Sopa');
+    expect(res.body[0].status).toBe('disponivel');
+    expect(res.body[0].ong).toBeNull();
+  });
+
+  it('mostra juntas as doações disponíveis e as aceitas do mesmo doador', async () => {
+    const aceita = await publicar('Padaria do Zé', { tipo: 'Pão' });
+    await publicar('Padaria do Zé', { tipo: 'Bolo' });
+
+    await request(app)
+      .post(`/api/doacoes/${aceita.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+
+    const res = await minhas('Padaria do Zé');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(2);
+
+    const porTipo = Object.fromEntries(res.body.map((d) => [d.tipo, d]));
+    expect(porTipo['Pão'].status).toBe('aceita');
+    expect(porTipo['Pão'].ong).toBe('ONG Esperança');
+    expect(porTipo['Bolo'].status).toBe('disponivel');
+    expect(porTipo['Bolo'].ong).toBeNull();
+  });
+
+  it('não mostra doações de outros doadores', async () => {
+    await publicar('Padaria do Zé', { tipo: 'Pão' });
+    await publicar('Restaurante Sabor', { tipo: 'Arroz' });
+
+    const res = await minhas('Padaria do Zé');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].tipo).toBe('Pão');
+  });
+
+  it('não mostra doações publicadas sem doador identificado', async () => {
+    await publicar(undefined, { tipo: 'Anônima' });
+
+    const res = await minhas('Padaria do Zé');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+});
+
 /* Exemplo de como transformar um critério de aceite em teste.
    Descomente o beforeEach/afterAll quando começar a usar o banco.
 
