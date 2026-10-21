@@ -6,7 +6,8 @@ export async function inserir({
   tipo,
   quantidade,
   validade,
-  doador = null
+  doador = null,
+  enderecoRetirada = null
 }) {
 
   const { rows } = await query(
@@ -15,23 +16,26 @@ export async function inserir({
       tipo,
       quantidade,
       validade,
-      doador
+      doador,
+      endereco_retirada
     )
-    VALUES (?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?)
     RETURNING *
     `,
     [
       tipo,
       quantidade,
       validade,
-      doador
+      doador,
+      enderecoRetirada
     ]
   );
 
   return rows[0];
 }
 
-// Lista todas as doações de um doador
+// Lista todas as doações de um doador (disponíveis e aceitas), da mais recente
+// para a mais antiga
 export async function listarPorDoador(doador) {
 
   const { rows } = await query(
@@ -48,12 +52,20 @@ export async function listarPorDoador(doador) {
   return rows;
 }
 
-// Lista somente as doações disponíveis
+// Lista somente as doações disponíveis.
+// Não inclui `endereco_retirada`: ele só é liberado à ONG depois do aceite.
 export async function listarDisponiveis() {
 
   const { rows } = await query(
     `
-    SELECT *
+    SELECT id,
+           tipo,
+           quantidade,
+           validade,
+           status,
+           ong,
+           criada_em,
+           doador
     FROM doacoes
     WHERE status = 'disponivel'
     ORDER BY validade ASC,
@@ -80,7 +92,7 @@ export async function buscarPorId(id) {
   return rows[0];
 }
 
-// Doador cancela a doação, se ainda estiver disponível
+// Doador cancela uma doação, se ainda estiver disponível
 export async function cancelar(id, doador) {
 
   const { rows } = await query(

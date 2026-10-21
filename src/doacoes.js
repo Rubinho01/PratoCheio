@@ -28,16 +28,19 @@ export async function criarDoacao({
   tipo,
   quantidade,
   validade,
-  doador
+  doador,
+  enderecoRetirada
 } = {}) {
 
+  // O doador é opcional, endereço de retirada não. Pois não faz sentido cadastrar uma doação sem informar onde ela será retirada.
   const nomeDoador = String(doador ?? '').trim() || null;
 
   return repo.inserir({
     tipo: textoObrigatorio(tipo, 'tipo'),
     quantidade: textoObrigatorio(quantidade, 'quantidade'),
     validade: validarData(validade),
-    doador: nomeDoador
+    doador: nomeDoador,
+    enderecoRetirada: textoObrigatorio(enderecoRetirada, 'endereço de retirada')
   });
 }
 
@@ -91,7 +94,7 @@ export async function aceitar(id, ong) {
   return atualizada;
 }
 
-// Doador cancela a doação, se ainda estiver disponível
+// Doador cancela uma doação, se ainda estiver disponível
 export async function cancelar(id, doador) {
 
   const idNumerico = Number(id);
@@ -122,10 +125,46 @@ export async function cancelar(id, doador) {
 
   const cancelada = await repo.cancelar(idNumerico, nomeDoador);
 
-  // Se a doação não estava mais como disponível, o cancelamento não ocorreu
   if (!cancelada) {
     throw new Error('não é possível cancelar uma doação já aceita');
   }
 
   return cancelada;
+}
+
+
+// ONG consulta o endereço de retirada de uma doação.
+// O endereço só é liberado depois do aceite e somente para a ONG que aceitou.
+export async function consultarRetirada(id, ong) {
+
+  const idNumerico = Number(id);
+
+  if (!Number.isInteger(idNumerico) || idNumerico <= 0) {
+    throw new Error('doação inválida');
+  }
+
+  const nomeOng = textoObrigatorio(ong, 'ONG');
+
+  const existente = await repo.buscarPorId(idNumerico);
+
+  if (!existente) {
+    throw new Error('doação não encontrada');
+  }
+
+  if (existente.status !== 'aceita') {
+    throw new Error('o endereço de retirada só é liberado depois do aceite');
+  }
+
+  if (existente.ong !== nomeOng) {
+    throw new Error('esta doação foi aceita por outra ONG');
+  }
+
+  return {
+    id: existente.id,
+    tipo: existente.tipo,
+    quantidade: existente.quantidade,
+    validade: existente.validade,
+    ong: existente.ong,
+    endereco_retirada: existente.endereco_retirada
+  };
 }
