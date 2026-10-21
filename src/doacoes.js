@@ -31,7 +31,6 @@ export async function criarDoacao({
   doador
 } = {}) {
 
-
   const nomeDoador = String(doador ?? '').trim() || null;
 
   return repo.inserir({
@@ -42,8 +41,11 @@ export async function criarDoacao({
   });
 }
 
+// Doador vê a situação das próprias doações
 export async function listarDoDoador(doador) {
+
   const nomeDoador = textoObrigatorio(doador, 'doador');
+
   return repo.listarPorDoador(nomeDoador);
 }
 
@@ -69,6 +71,10 @@ export async function aceitar(id, ong) {
     throw new Error('doação não encontrada');
   }
 
+  if (existente.status === 'cancelada') {
+    throw new Error('esta doação foi cancelada pelo doador');
+  }
+
   if (existente.status !== 'disponivel') {
     throw new Error('esta doação já foi aceita');
   }
@@ -83,4 +89,43 @@ export async function aceitar(id, ong) {
   }
 
   return atualizada;
+}
+
+// Doador cancela a doação, se ainda estiver disponível
+export async function cancelar(id, doador) {
+
+  const idNumerico = Number(id);
+
+  if (!Number.isInteger(idNumerico) || idNumerico <= 0) {
+    throw new Error('doação inválida');
+  }
+
+  const nomeDoador = textoObrigatorio(doador, 'doador');
+
+  const existente = await repo.buscarPorId(idNumerico);
+
+  if (!existente) {
+    throw new Error('doação não encontrada');
+  }
+
+  if (existente.doador !== nomeDoador) {
+    throw new Error('esta doação não pertence a este doador');
+  }
+
+  if (existente.status === 'aceita') {
+    throw new Error('não é possível cancelar uma doação já aceita');
+  }
+
+  if (existente.status === 'cancelada') {
+    throw new Error('esta doação já foi cancelada');
+  }
+
+  const cancelada = await repo.cancelar(idNumerico, nomeDoador);
+
+  // Se a doação não estava mais como disponível, o cancelamento não ocorreu
+  if (!cancelada) {
+    throw new Error('não é possível cancelar uma doação já aceita');
+  }
+
+  return cancelada;
 }

@@ -171,6 +171,101 @@ describe('doador vê a situação das próprias doações', () => {
   });
 });
 
+
+
+describe('doador cancela uma doação ainda disponível', () => {
+  const publicar = (doador, extra = {}) =>
+    request(app)
+      .post('/api/doacoes')
+      .send({
+        tipo: 'Sopa',
+        quantidade: '10 porções',
+        validade: '2026-08-01',
+        doador,
+        ...extra
+      });
+ 
+  const cancelar = (id, doador) =>
+    request(app).post(`/api/doacoes/${id}/cancelar`).send({ doador });
+ 
+  it('marca a doação disponível como cancelada', async () => {
+    const criada = await publicar('Padaria do Zé');
+ 
+    const res = await cancelar(criada.body.id, 'Padaria do Zé');
+ 
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(criada.body.id);
+    expect(res.body.status).toBe('cancelada');
+  });
+ 
+  it('remove a doação cancelada da lista de disponíveis das ONGs', async () => {
+    const criada = await publicar('Padaria do Zé');
+ 
+    await cancelar(criada.body.id, 'Padaria do Zé');
+ 
+    const lista = await request(app).get('/api/doacoes');
+    expect(lista.body).toHaveLength(0);
+  });
+ 
+  it('mostra a doação como cancelada nas doações do doador', async () => {
+    const criada = await publicar('Padaria do Zé');
+ 
+    await cancelar(criada.body.id, 'Padaria do Zé');
+ 
+    const res = await request(app)
+      .get('/api/doacoes/minhas')
+      .query({ doador: 'Padaria do Zé' });
+ 
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].status).toBe('cancelada');
+    expect(res.body[0].ong).toBeNull();
+  });
+ 
+  it('cancela só a doação indicada, sem afetar as outras', async () => {
+    const alvo = await publicar('Padaria do Zé', { tipo: 'Pão' });
+    await publicar('Padaria do Zé', { tipo: 'Bolo' });
+ 
+    await cancelar(alvo.body.id, 'Padaria do Zé');
+ 
+    const lista = await request(app).get('/api/doacoes');
+    expect(lista.body).toHaveLength(1);
+    expect(lista.body[0].tipo).toBe('Bolo');
+  });
+ 
+  it('recusa cancelar uma doação que já foi aceita por uma ONG', async () => {
+    const criada = await publicar('Padaria do Zé');
+ 
+    await request(app)
+      .post(`/api/doacoes/${criada.body.id}/aceitar`)
+      .send({ ong: 'ONG Esperança' });
+ 
+    const res = await cancelar(criada.body.id, 'Padaria do Zé');
+ 
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBeTruthy();
+ 
+    const minhas = await request(app)
+      .get('/api/doacoes/minhas')
+      .query({ doador: 'Padaria do Zé' });
+    expect(minhas.body[0].status).toBe('aceita');
+    expect(minhas.body[0].ong).toBe('ONG Esperança');
+  });
+
+ 
+  it('recusa o cancelamento feito por outro doador', async () => {
+    const criada = await publicar('Padaria do Zé');
+ 
+    const res = await cancelar(criada.body.id, 'Restaurante Sabor');
+ 
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toBeTruthy();
+ 
+    const lista = await request(app).get('/api/doacoes');
+    expect(lista.body).toHaveLength(1);
+    expect(lista.body[0].status).toBe('disponivel');
+  });
+});
+
 /* Exemplo de como transformar um critério de aceite em teste.
    Descomente o beforeEach/afterAll quando começar a usar o banco.
 

@@ -31,6 +31,7 @@ export async function inserir({
   return rows[0];
 }
 
+// Lista todas as doações de um doador
 export async function listarPorDoador(doador) {
 
   const { rows } = await query(
@@ -74,6 +75,27 @@ export async function buscarPorId(id) {
     WHERE id = ?
     `,
     [id]
+  );
+
+  return rows[0];
+}
+
+// Doador cancela a doação, se ainda estiver disponível
+export async function cancelar(id, doador) {
+
+  const { rows } = await query(
+    `
+    UPDATE doacoes
+    SET status = 'cancelada'
+    WHERE id = ?
+      AND doador = ?
+      AND status = 'disponivel'
+    RETURNING *
+    `,
+    [
+      id,
+      doador
+    ]
   );
 
   return rows[0];
