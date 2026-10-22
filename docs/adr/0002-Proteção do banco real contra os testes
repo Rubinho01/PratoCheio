@@ -1,0 +1,46 @@
+# ADR 0002 — Proteger o banco real contra os testes
+
+- **Data:** 2026-10-20
+- **Status:** proposto
+- **Relacionado:** ADR 0001 (migração para PostgreSQL). Este ADR complementa o 0001, não o substitui.
+
+## Contexto
+
+O piloto da Marta tem doações reais. Alguém da equipe rodou os testes na máquina do piloto com a configuração apontando para o banco real, e o limparBanco() apagou todas as doações. A Marta pediu: isso não pode acontecer de novo.
+
+O que o código mostra:
+- src/db.js lê DATABASE_FILE e, sem ela, usa dados.sqlite (o banco real).
+- vitest.config.js só sobrescreve DATABASE_FILE. Com o PostgreSQL, o banco virá de DATABASE_URL, que o Vitest não sobrescreve. Os testes rodariam no banco real.
+- limparBanco() faz DELETE FROM doacoes sem checar em que banco está.
+
+## Alternativas consideradas
+
+1. Só avisar a equipe: Custo zero, mas foi o que falhou.
+2. Trava só no limparBanco(): Simples, mas os testes ainda conseguem conectar no banco real.
+3. Travas combinadas (banco de teste separado + trava no código): Um pouco mais de configuração, mas um erro é pego pela camada seguinte.
+
+## Decisão
+
+Adotar a alternativa 3. Na dúvida, os testes se recusam a rodar.
+
+1. Os testes usam um banco separado, com nome terminando em `_test`.
+2. O vitest.config.js define NODE_ENV=test e a conexão de teste, sem herdar o que vier do ambiente.
+3. O db.js não tem banco padrão, então se não instanciarmos não irá funcionar.
+4. O limparBanco() só roda se for ambiente de teste e banco de teste. Senão, lança erro e não apaga nada.
+5. Um globalSetup do Vitest faz a mesma checagem e cancela a suíte antes do primeiro teste.
+6. O banco do piloto e o de teste usam usuários diferentes.
+
+
+## Consequências
+
+- **Positivas:** rodar os testes no piloto não apaga mais nada; a regra é verificada pelo CI; dados reais saem do repositório.
+- **Negativas:** é preciso criar e configurar um banco de teste;
+- **Riscos:**
+  - Alguém dar ao banco real um nome terminando em `_test`. A revisão de código trata esse nome como reservado, e as credenciais separadas ainda bloqueiam.
+  - Dados já apagados não voltam por esta decisão. Se houver backup, restaurar; senão, recadastrar e avisar a Marta.
+
+## Rastreabilidade
+
+- **Pedido da Marta:** "que isso não possa acontecer de novo"
+- **Risco da Análise:** perda de dados reais por teste rodando no banco de produção.
+- **Arquivos:** src/db.js, vitest.config.js, tests/doacoes.test.js.
