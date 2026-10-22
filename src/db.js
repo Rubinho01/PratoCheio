@@ -43,7 +43,10 @@ export async function migrar() {
       ong         TEXT,
       criada_em   TEXT NOT NULL DEFAULT (datetime('now')),
       doador      TEXT,
-      endereco_retirada TEXT
+      endereco_retirada TEXT,
+      aceita_em   TEXT,
+      coletada_em TEXT,
+      voluntario  TEXT
     )
   `);
 
@@ -55,8 +58,29 @@ export async function migrar() {
     conexao().exec('ALTER TABLE doacoes ADD COLUMN endereco_retirada TEXT');
   }
 
+  // Migração incremental para bancos já existentes: ALTER TABLE preserva as doações.
+  for (const coluna of ['aceita_em', 'coletada_em', 'voluntario']) {
+    if (!colunas.some((existente) => existente.name === coluna)) {
+      conexao().exec(`ALTER TABLE doacoes ADD COLUMN ${coluna} TEXT`);
+    }
+  }
+
+  // Registros aceitos antes deste incremento não tinham horário do aceite.
+  // Usa a criação apenas como estimativa, sem alterar o status ou a ONG.
+  conexao().exec(`
+    UPDATE doacoes
+    SET aceita_em = criada_em
+    WHERE status IN ('aceita', 'coletada') AND aceita_em IS NULL
+  `);
+
   conexao().exec(
     'CREATE INDEX IF NOT EXISTS idx_doacoes_doador ON doacoes (doador)'
+  );
+  conexao().exec(
+    'CREATE INDEX IF NOT EXISTS idx_doacoes_status ON doacoes (status)'
+  );
+  conexao().exec(
+    'CREATE INDEX IF NOT EXISTS idx_doacoes_aceita_em ON doacoes (aceita_em)'
   );
 }
 
