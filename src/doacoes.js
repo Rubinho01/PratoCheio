@@ -23,9 +23,37 @@ function validarData(valor) {
   return validade;
 }
 
+// H7 - Valida a categoria de alimento: obrigatória e precisa existir no banco
+async function validarCategoria(valor) {
+  const texto = String(valor ?? '').trim();
+
+  if (!texto) {
+    throw new Error('categoria é obrigatória');
+  }
+
+  const id = Number(texto);
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error('categoria inválida');
+  }
+
+  const categoria = await repo.buscarCategoriaPorId(id);
+
+  if (!categoria) {
+    throw new Error('categoria inválida');
+  }
+
+  return categoria.id;
+}
+
+export async function listarCategorias() {
+  return repo.listarCategorias();
+}
+
 // H0 - Doador cadastra uma nova doação
 export async function criarDoacao({
   tipo,
+  categoriaId,
   quantidade,
   validade,
   doador,
@@ -37,6 +65,7 @@ export async function criarDoacao({
 
   return repo.inserir({
     tipo: textoObrigatorio(tipo, 'tipo'),
+    categoriaId: await validarCategoria(categoriaId),
     quantidade: textoObrigatorio(quantidade, 'quantidade'),
     validade: validarData(validade),
     doador: nomeDoador,

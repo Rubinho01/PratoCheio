@@ -6,8 +6,15 @@ export function criarApp() {
   app.use(express.json());
   app.use(express.static('public'));
 
-  // Verificação de saúde: usada pelo CI para provar que a aplicação sobe.
   app.get('/api/saude', (req, res) => res.json({ ok: true }));
+
+  app.get('/api/categorias', async (req, res) => {
+    try {
+      res.json(await doacoes.listarCategorias());
+    } catch (erro) {
+      res.status(400).json({ erro: erro.message });
+    }
+  });
 
   app.get('/api/doacoes', async (req, res) => {
     try {
