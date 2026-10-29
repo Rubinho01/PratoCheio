@@ -414,6 +414,54 @@
       opacity: 0.6;
     }
 
+    /* HISTÓRIAS: COLETA DO VOLUNTÁRIO E RELATÓRIO MENSAL */
+
+    .extras {
+      margin-top: 26px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 25px;
+      align-items: start;
+    }
+
+    .extras .card {
+      min-width: 0;
+    }
+
+    .extras-conteudo {
+      padding: 10px 24px 25px;
+    }
+
+    .extras-conteudo .campo {
+      margin-top: 5px;
+      margin-bottom: 18px;
+    }
+
+    .extras-conteudo #listaColetas {
+      margin-top: 14px;
+    }
+
+    .extras-conteudo .doacao {
+      padding: 14px;
+    }
+
+    .extras-conteudo .botao-aceitar {
+      flex-shrink: 0;
+    }
+
+    .numero-relatorio {
+      display: block;
+      font-size: 54px;
+      color: #2e7d4f;
+      margin: 15px 0 8px;
+    }
+
+    .nota-relatorio {
+      color: #6d7a71;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
     /* ESTADO VAZIO */
 
     .vazio {
@@ -517,6 +565,10 @@
 
     @media (max-width: 800px) {
 
+      .extras {
+        grid-template-columns: 1fr;
+      }
+
       .hero {
         display: block;
       }
@@ -583,7 +635,7 @@
     </div>
 
     <div class="h0">
-      História H0
+      Projeto piloto
     </div>
 
   </div>
@@ -659,6 +711,16 @@
 
         <div class="campo">
 
+          <label for="doador">
+            Nome do doador (opcional)
+          </label>
+
+          <input id="doador" type="text" maxlength="100" placeholder="Ex.: Padaria do Zé">
+
+        </div>
+
+        <div class="campo">
+
           <label for="tipo">
             Tipo de alimento
           </label>
@@ -705,6 +767,17 @@
 
         </div>
 
+
+        <div class="campo">
+
+          <label for="enderecoRetirada">
+            Endereço de retirada
+          </label>
+
+          <input id="enderecoRetirada" type="text" maxlength="200"
+            placeholder="Rua, número, bairro e cidade" required>
+
+        </div>
 
         <button
           id="publicar"
@@ -767,11 +840,48 @@
   </section>
 
 
+  <section class="extras">
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Confirmar coleta</h2>
+        <p>O voluntário registra a retirada de uma doação que já foi aceita por uma ONG.</p>
+      </div>
+      <div class="extras-conteudo">
+        <div class="campo">
+          <label for="voluntario">Nome do voluntário</label>
+          <input id="voluntario" type="text" maxlength="100" placeholder="Ex.: Ana Silva">
+        </div>
+        <p class="nota-relatorio">Doações aceitas que ainda aguardam a coleta:</p>
+        <div id="listaColetas" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Relatório da Marta</h2>
+        <p>Quantidade de doações aceitas pelas ONGs no mês escolhido.</p>
+      </div>
+      <div class="extras-conteudo">
+        <div class="campo">
+          <label for="mesRelatorio">Mês de referência</label>
+          <input id="mesRelatorio" type="month">
+        </div>
+        <span class="nota-relatorio">Total de doações aceitas</span>
+        <strong class="numero-relatorio" id="totalAceites" aria-live="polite">—</strong>
+        <p class="nota-relatorio" id="mensagemRelatorio">
+          O total considera a data do aceite, mesmo que a doação já tenha sido coletada.
+        </p>
+      </div>
+    </div>
+
+  </section>
+
   <footer>
 
     Prato Cheio ·
     Protótipo acadêmico ·
-    História de Usuário H0
+    Doação · Aceite · Coleta · Relatórios
 
   </footer>
 
@@ -806,6 +916,16 @@
 
   const toast =
     document.getElementById('toast');
+
+  const listaColetas = document.getElementById('listaColetas');
+  const inputVoluntario = document.getElementById('voluntario');
+  const inputMes = document.getElementById('mesRelatorio');
+  const totalAceites = document.getElementById('totalAceites');
+  const mensagemRelatorio = document.getElementById('mensagemRelatorio');
+
+  // O banco registra os horários de aceite em UTC.
+  inputMes.value = new Date().toISOString().slice(0, 7);
+
 
 
   // Não permite selecionar data anterior a hoje
@@ -1013,7 +1133,7 @@
           );
 
 
-          await carregarDoacoes();
+          await Promise.all([carregarDoacoes(), carregarColetas(), carregarRelatorio()]);
 
         }
         catch (erro) {
@@ -1170,7 +1290,13 @@
             .trim(),
 
         validade:
-          validadeInput.value
+          validadeInput.value,
+
+        doador:
+          document.getElementById('doador').value.trim(),
+
+        enderecoRetirada:
+          document.getElementById('enderecoRetirada').value.trim()
 
       };
 
@@ -1253,7 +1379,95 @@
   );
 
 
+  // Mostra apenas coletas pendentes, sem divulgar endereços de retirada.
+  async function carregarColetas() {
+    listaColetas.textContent = 'Carregando doações aceitas...';
+    try {
+      const resposta = await fetch('/api/doacoes/pendentes-coleta');
+      const doacoes = await processarResposta(resposta);
+      listaColetas.replaceChildren();
+
+      if (doacoes.length === 0) {
+        const vazio = document.createElement('div');
+        vazio.className = 'vazio';
+        vazio.textContent = 'Nenhuma doação aguardando coleta.';
+        listaColetas.append(vazio);
+        return;
+      }
+
+      for (const doacao of doacoes) {
+        const card = document.createElement('div');
+        card.className = 'doacao';
+        const dados = document.createElement('div');
+        const titulo = document.createElement('h3');
+        titulo.textContent = doacao.tipo;
+        const detalhes = document.createElement('p');
+        detalhes.className = 'nota-relatorio';
+        detalhes.textContent = `${doacao.quantidade} · ONG: ${doacao.ong} · Retirar até ${formatarData(doacao.validade)}`;
+        dados.append(titulo, detalhes);
+
+        const botao = document.createElement('button');
+        botao.className = 'botao-aceitar';
+        botao.type = 'button';
+        botao.textContent = 'Marcar coletada';
+        botao.addEventListener('click', async () => {
+          const voluntario = inputVoluntario.value.trim();
+          if (!voluntario) {
+            mostrarToast('Informe o nome do voluntário.', true);
+            inputVoluntario.focus();
+            return;
+          }
+          botao.disabled = true;
+          botao.textContent = 'Salvando...';
+          try {
+            const resposta = await fetch(`/api/doacoes/${doacao.id}/coletar`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ voluntario })
+            });
+            await processarResposta(resposta);
+            mostrarToast('Coleta registrada com sucesso!');
+            await Promise.all([carregarColetas(), carregarRelatorio()]);
+          } catch (erro) {
+            mostrarToast(erro.message, true);
+            botao.disabled = false;
+            botao.textContent = 'Marcar coletada';
+          }
+        });
+        card.append(dados, botao);
+        listaColetas.append(card);
+      }
+    } catch (erro) {
+      listaColetas.textContent = `Erro ao carregar as coletas: ${erro.message}`;
+    }
+  }
+
+  // Relatório por mês do aceite: a coleta não remove doações da contagem.
+  async function carregarRelatorio() {
+    const mes = inputMes.value;
+    if (!mes) {
+      totalAceites.textContent = '—';
+      return;
+    }
+    totalAceites.textContent = '…';
+    try {
+      const resposta = await fetch(`/api/relatorios/aceites?mes=${encodeURIComponent(mes)}`);
+      const dados = await processarResposta(resposta);
+      // Evita exibir o resultado de um mês após o usuário selecionar outro.
+      if (inputMes.value !== mes) return;
+      totalAceites.textContent = String(dados.totalAceitas);
+      mensagemRelatorio.textContent = 'Contagem baseada na data do aceite (UTC), incluindo doações já coletadas.';
+    } catch (erro) {
+      if (inputMes.value !== mes) return;
+      totalAceites.textContent = '—';
+      mensagemRelatorio.textContent = `Erro no relatório: ${erro.message}`;
+    }
+  }
+
+  inputMes.addEventListener('change', carregarRelatorio);
   carregarDoacoes();
+  carregarColetas();
+  carregarRelatorio();
 
 </script>
 
