@@ -198,6 +198,7 @@ export async function confirmarColeta(id, voluntario) {
   if (!atualizada) {
     throw new Error('esta doação já não está aguardando coleta');
   }
+
   return atualizada;
 }
 
