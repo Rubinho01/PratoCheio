@@ -31,8 +31,21 @@ export async function query(sql, valores = []) {
   return { rows: [], alteradas: info.changes };
 }
 
-/** Cria o schema, se ainda não existir. Rodado por `npm run db:migrar` e ao subir o servidor. */
+const CATEGORIAS_INICIAIS = ['Perecível', 'Industrializado', 'Hortifrúti'];
+
 export async function migrar() {
+  conexao().exec(`
+    CREATE TABLE IF NOT EXISTS categorias (
+      id    INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome  TEXT NOT NULL UNIQUE
+    )
+  `);
+
+  const inserirCategoria = conexao().prepare(
+    'INSERT OR IGNORE INTO categorias (nome) VALUES (?)'
+  );
+  for (const nome of CATEGORIAS_INICIAIS) inserirCategoria.run(nome);
+
   conexao().exec(`
     CREATE TABLE IF NOT EXISTS doacoes (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,7 +59,8 @@ export async function migrar() {
       endereco_retirada TEXT,
       aceita_em   TEXT,
       coletada_em TEXT,
-      voluntario  TEXT
+      voluntario  TEXT,
+      categoria_id INTEGER REFERENCES categorias (id)
     )
   `);
 
@@ -56,6 +70,11 @@ export async function migrar() {
   }
   if (!colunas.some((coluna) => coluna.name === 'endereco_retirada')) {
     conexao().exec('ALTER TABLE doacoes ADD COLUMN endereco_retirada TEXT');
+  }
+  if (!colunas.some((coluna) => coluna.name === 'categoria_id')) {
+    conexao().exec(
+      'ALTER TABLE doacoes ADD COLUMN categoria_id INTEGER REFERENCES categorias (id)'
+    );
   }
 
   // Migração incremental para bancos já existentes: ALTER TABLE preserva as doações.
@@ -81,6 +100,9 @@ export async function migrar() {
   );
   conexao().exec(
     'CREATE INDEX IF NOT EXISTS idx_doacoes_aceita_em ON doacoes (aceita_em)'
+  );
+  conexao().exec(
+    'CREATE INDEX IF NOT EXISTS idx_doacoes_categoria ON doacoes (categoria_id)'
   );
 }
 
