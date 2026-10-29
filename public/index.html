@@ -241,7 +241,8 @@
       margin-bottom: 7px;
     }
 
-    input {
+    input,
+    select {
       width: 100%;
 
       padding: 13px 14px;
@@ -252,12 +253,17 @@
 
       font-size: 14px;
 
+      font-family: inherit;
+
+      background: #fff;
+
       outline: none;
 
       transition: 0.2s;
     }
 
-    input:focus {
+    input:focus,
+    select:focus {
       border-color: #2e7d4f;
 
       box-shadow:
@@ -388,6 +394,14 @@
       background: #fff4e6;
 
       color: #8a5515;
+    }
+
+    .categoria {
+      background: #dff1e5;
+
+      color: #246b42;
+
+      font-weight: bold;
     }
 
     .botao-aceitar {
@@ -738,6 +752,21 @@
 
         <div class="campo">
 
+          <label for="categoria">
+            Categoria do alimento
+          </label>
+
+          <select id="categoria" required>
+            <option value="" selected disabled>
+              Carregando categorias...
+            </option>
+          </select>
+
+        </div>
+
+
+        <div class="campo">
+
           <label for="quantidade">
             Quantidade
           </label>
@@ -914,6 +943,9 @@
   const validadeInput =
     document.getElementById('validade');
 
+  const selectCategoria =
+    document.getElementById('categoria');
+
   const toast =
     document.getElementById('toast');
 
@@ -1052,6 +1084,22 @@
     validade.textContent =
       `Retirar até ${formatarData(doacao.validade)}`;
 
+
+    // Doações antigas, anteriores às categorias, podem não ter categoria.
+    if (doacao.categoria) {
+
+      const categoria =
+        document.createElement('span');
+
+      categoria.className =
+        'info categoria';
+
+      categoria.textContent =
+        doacao.categoria;
+
+      informacoes.append(categoria);
+
+    }
 
     informacoes.append(
       quantidade,
@@ -1261,6 +1309,84 @@
   }
 
 
+  // Preenche o select com as categorias pré-cadastradas no banco
+
+  async function carregarCategorias() {
+
+    try {
+
+      const resposta =
+        await fetch(
+          '/api/categorias'
+        );
+
+      const categorias =
+        await processarResposta(
+          resposta
+        );
+
+      selectCategoria.replaceChildren();
+
+      const placeholder =
+        document.createElement('option');
+
+      placeholder.value = '';
+
+      placeholder.textContent =
+        'Selecione uma categoria';
+
+      placeholder.disabled = true;
+
+      placeholder.defaultSelected = true;
+
+      selectCategoria.append(placeholder);
+
+      categorias.forEach(
+        categoria => {
+
+          const opcao =
+            document.createElement('option');
+
+          opcao.value =
+            categoria.id;
+
+          opcao.textContent =
+            categoria.nome;
+
+          selectCategoria.append(opcao);
+
+        }
+      );
+
+    }
+    catch (erro) {
+
+      selectCategoria.replaceChildren();
+
+      const falha =
+        document.createElement('option');
+
+      falha.value = '';
+
+      falha.textContent =
+        'Não foi possível carregar as categorias';
+
+      falha.disabled = true;
+
+      falha.defaultSelected = true;
+
+      selectCategoria.append(falha);
+
+      mostrarToast(
+        erro.message,
+        true
+      );
+
+    }
+
+  }
+
+
   // Cadastro da doação
 
   form.addEventListener(
@@ -1282,6 +1408,9 @@
             .getElementById('tipo')
             .value
             .trim(),
+
+        categoriaId:
+          selectCategoria.value,
 
         quantidade:
           document
@@ -1465,6 +1594,7 @@
   }
 
   inputMes.addEventListener('change', carregarRelatorio);
+  carregarCategorias();
   carregarDoacoes();
   carregarColetas();
   carregarRelatorio();
