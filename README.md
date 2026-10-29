@@ -97,3 +97,31 @@ por um teste de verdade conforme implementa.
 A IA pode participar da produção, mas o grupo é responsável por verificar, testar,
 corrigir e **defender** o resultado. Registre em cada Pull Request o que foi gerado
 com IA e o que vocês alteraram.
+
+
+## Definição de pronto
+
+Pronto, no nosso grupo, é:
+
+- [ ] O CI do Pull Request foi executado com sucesso,
+      sem falhas.
+      — onde se confere: aba Checks do PR no GitHub.
+
+- [ ] O Pull Request foi revisado e aprovado por pelo
+      menos um integrante diferente do autor.
+      — onde se confere: aba Reviews do PR no GitHub.
+
+- [ ] A funcionalidade atende aos critérios de aceite
+      definidos para a história de usuário.
+      — onde se confere: docs/analise.md e passos de
+      verificação descritos no PR.
+
+- [ ] Os testes automatizados relacionados à
+      funcionalidade foram implementados e passaram.
+      — onde se confere: pasta tests/ e resultado
+      da execução no CI.
+
+- [ ] O PR apresenta a descrição da funcionalidade,
+      as alterações realizadas e como verificá-las.
+      — onde se confere: descrição e aba Files changed
+      do Pull Request.
