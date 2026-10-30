@@ -225,3 +225,30 @@ Sobrecarga de navegação externa: Sem GPS integrado na plataforma, os voluntár
 
 ## Uso de IA
 O que geramos com IA, o que verificamos e o que alteramos.
+
+## Unidade 3 — História nova: confirmação de coleta pelo voluntário (Aula 11)
+
+**História:** Como voluntário, quero confirmar a retirada de uma doação já aceita por uma ONG, para que a coordenação saiba que o alimento foi coletado e que a entrega não continue pendente.
+
+**Regra de negócio:** somente doações no estado `aceita` podem ser marcadas como `coletada`; uma segunda confirmação não pode sobrescrever o primeiro voluntário e o horário de coleta. A lista operacional não pode divulgar o endereço reservado à ONG.
+
+**Corte em fatias:**
+
+1. **Primeira fatia (Parte A) — confirmação da coleta:** dado que uma ONG aceitou a doação, quando um voluntário informa seu nome e confirma a retirada, então o sistema registra o voluntário e o momento da coleta e altera o estado para `coletada`.
+2. **Fatia 2 — acompanhamento das pendentes:** dado que existem doações disponíveis, aceitas e coletadas, quando o voluntário consulta a fila, então só aparecem as aceitas ainda não coletadas, sem endereço de retirada.
+3. **Fatia 3 — histórico após a coleta:** dado que a coleta foi confirmada, quando o doador consulta seu histórico, então a doação aparece como coletada e a ONG/horário de aceite permanecem registrados.
+
+**Critérios de aceite considerados na Parte B:**
+
+- **CA1 — Fila de coleta:** dado que existem doações em diferentes estados, quando o voluntário consulta a fila de coletas pendentes, então somente as aceitas e ainda não coletadas aparecem, sem endereço de retirada.
+- **CA2 — Confirmação:** dado que uma doação está aceita, quando um voluntário identificado confirma a coleta, então o status fica `coletada`, o nome é registrado, o horário da coleta é preenchido e a ONG e o horário de aceite permanecem inalterados.
+- **CA3 — Histórico:** dado que duas doações foram aceitas, quando uma delas é coletada, então ela sai da fila e passa a constar como `coletada` no histórico do doador, sem afetar a outra.
+
+**Casos limite e de erro (regras decididas pelo grupo para validação):**
+
+- **ER1:** tentar coletar uma doação disponível deve ser recusado sem mudar o status.
+- **ER2:** voluntário com nome vazio deve ser recusado e a coleta permanecer pendente.
+- **ER3:** repetir uma confirmação deve ser recusado e preservar o primeiro voluntário e o horário.
+- **ER4:** coletar uma doação inexistente deve devolver erro informativo.
+
+**Rastreabilidade:** os sete testes novos são identificados por `CA1`, `CA2`, `CA3`, `ER1`, `ER2`, `ER3` e `ER4` em `tests/aula11-parte-b-coleta.test.js`. A história também é detalhada em `docs/implementacao-coleta-relatorio.md`.

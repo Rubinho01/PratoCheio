@@ -4,11 +4,22 @@ import { criarApp } from '../src/app.js';
 import { migrar, limparBanco, encerrar, query } from '../src/db.js';
 
 const app = criarApp();
+
+// Prepara a categoria por meio da API, sem depender de um ID fixo no banco.
+async function buscarIdCategoria() {
+  const resposta = await request(app).get('/api/categorias');
+  expect(resposta.status).toBe(200);
+  const categoria = resposta.body.find((item) => item.nome === 'Perecível');
+  expect(categoria).toBeDefined();
+  return categoria.id;
+}
+
 beforeEach(async () => { await migrar(); await limparBanco(); });
 afterAll(async () => { await encerrar(); });
 
 async function publicarAceitar(ong = 'ONG Esperança') {
   const publicada = await request(app).post('/api/doacoes').send({
+    categoriaId: await buscarIdCategoria(),
     tipo: 'Legumes', quantidade: '15 caixas', validade: '2026-11-30',
     doador: 'Mercado Bairro', enderecoRetirada: 'Rua Central, 80'
   });
@@ -28,6 +39,7 @@ describe('voluntário marca a doação como coletada', () => {
   it('lista somente as aceitas e não expõe o endereço de retirada', async () => {
     const aceita = await publicarAceitar();
     await request(app).post('/api/doacoes').send({
+      categoriaId: await buscarIdCategoria(),
       tipo: 'Arroz', quantidade: '2 sacos', validade: '2026-11-30',
       enderecoRetirada: 'Endereço confidencial'
     });
@@ -62,6 +74,7 @@ describe('voluntário marca a doação como coletada', () => {
 
   it('não permite coletar uma doação disponível', async () => {
     const criada = await request(app).post('/api/doacoes').send({
+      categoriaId: await buscarIdCategoria(),
       tipo: 'Frutas', quantidade: '2 caixas', validade: '2026-11-30',
       enderecoRetirada: 'Rua A, 12'
     });
@@ -117,6 +130,7 @@ describe('Marta vê quantas doações foram aceitas no mês', () => {
     await query('UPDATE doacoes SET criada_em = ?, aceita_em = ? WHERE id = ?',
       ['2026-08-20 10:00:00', '2026-10-02 10:00:00', aceita.id]);
     const pendente = await request(app).post('/api/doacoes').send({
+      categoriaId: await buscarIdCategoria(),
       tipo: 'Pães', quantidade: '10', validade: '2026-11-30',
       enderecoRetirada: 'Rua B, 10', doador: 'Padaria'
     });

@@ -84,13 +84,11 @@ peça a revisão de **outro integrante**. Só então faça o merge.
 
 ## O que já está pronto e o que falta
 
-Pronto: estrutura do projeto, interface básica, rota de saúde, **conexão com o banco e o schema** (`src/db.js`), CI configurado e um teste passando (prova que a aplicação sobe).
+Pronto nesta versão: fluxo básico de publicação e aceite de doações, consulta e cancelamento pelo doador, consulta protegida do endereço de retirada, confirmação de coleta, relatório mensal de aceites e testes automatizados dessas funcionalidades.
 
-Falta (Trabalho 1 — walking skeleton): implementar `src/doacoes.js` (regras) e
-`src/repositorio.js` (SQL) para que a história zero funcione ponta a ponta —
-**um doador publica uma doação → uma ONG vê a doação → a ONG a aceita e ela sai da lista.**
-Os critérios de aceite estão em `tests/doacoes.test.js` como `it.todo`: troque cada um
-por um teste de verdade conforme implementa.
+Na Aula 11, a **Parte B** acrescenta uma suíte de sete testes de critérios e de erro para a história de confirmação de coleta, em `tests/aula11-parte-b-coleta.test.js`. Os critérios rastreáveis estão em `docs/analise.md`; a descrição sugerida do PR e o roteiro de inversão estão em `docs/PR-aula11-parte-b.md` e `docs/roteiro-inversao-aula11.md`.
+
+Pendente para a Unidade 3: migração efetiva do banco para PostgreSQL, conclusão das histórias priorizadas e validação completa do produto. O status do CI e das revisões deve ser comprovado no GitHub, não apenas no repositório local.
 
 ## Uso de IA
 
@@ -98,30 +96,12 @@ A IA pode participar da produção, mas o grupo é responsável por verificar, t
 corrigir e **defender** o resultado. Registre em cada Pull Request o que foi gerado
 com IA e o que vocês alteraram.
 
-
 ## Definição de pronto
 
 Pronto, no nosso grupo, é:
 
-- [ ] O CI do Pull Request foi executado com sucesso,
-      sem falhas.
-      — onde se confere: aba Checks do PR no GitHub.
-
-- [ ] O Pull Request foi revisado e aprovado por pelo
-      menos um integrante diferente do autor.
-      — onde se confere: aba Reviews do PR no GitHub.
-
-- [ ] A funcionalidade atende aos critérios de aceite
-      definidos para a história de usuário.
-      — onde se confere: docs/analise.md e passos de
-      verificação descritos no PR.
-
-- [ ] Os testes automatizados relacionados à
-      funcionalidade foram implementados e passaram.
-      — onde se confere: pasta tests/ e resultado
-      da execução no CI.
-
-- [ ] O PR apresenta a descrição da funcionalidade,
-      as alterações realizadas e como verificá-las.
-      — onde se confere: descrição e aba Files changed
-      do Pull Request.
+- [ ] O CI do Pull Request terminou sem falhas — onde se confere: aba **Checks** do PR no GitHub.
+- [ ] O Pull Request foi aprovado por um integrante que não é seu autor — onde se confere: aba **Reviews** do PR no GitHub.
+- [ ] A fatia implementada atende ao critério de aceite documentado — onde se confere: descrição do PR e resultados reproduzíveis em **Tests/Checks**.
+- [ ] Os testes automatizados relacionados à fatia estão presentes e aprovados — onde se confere: arquivos em `tests/` e aba **Checks** do PR.
+- [ ] A descrição do PR registra a história, as fatias, a verificação e o uso de IA — onde se confere: descrição do Pull Request.

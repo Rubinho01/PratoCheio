@@ -10,6 +10,16 @@ afterAll(async () => {await encerrar(); });
 
 const app = criarApp();
 
+// Prepara a categoria por meio da API, sem depender de um ID fixo no banco.
+async function buscarIdCategoria() {
+  const resposta = await request(app).get('/api/categorias');
+  expect(resposta.status).toBe(200);
+  const categoria = resposta.body.find((item) => item.nome === 'Perecível');
+  expect(categoria).toBeDefined();
+  return categoria.id;
+}
+
+
 // Este teste já passa e não depende do banco:
 // prova que a aplicação sobe e que o CI está funcionando.
 describe('a aplicação sobe', () => {
@@ -35,7 +45,7 @@ describe('publicar e listar doações', () => {
     it('mostra a doação publicada na lista de disponíveis', async () => {
     await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Sopa', quantidade: '10 porções', validade: '2026-10-01', enderecoRetirada: 'Rua das Flores, 123' });
+      .send({ categoriaId: await buscarIdCategoria(), tipo: 'Sopa', quantidade: '10 porções', validade: '2026-10-01', enderecoRetirada: 'Rua das Flores, 123' });
  
     const res = await request(app).get('/api/doacoes');
     expect(res.status).toBe(200);
@@ -46,7 +56,7 @@ describe('publicar e listar doações', () => {
   it('recusa doação sem os campos obrigatórios', async () => {
     const res = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Sopa', quantidade: '10 porções' }); // falta validade
+      .send({ categoriaId: await buscarIdCategoria(), tipo: 'Sopa', quantidade: '10 porções' }); // falta validade
  
     expect(res.status).toBe(400);
     expect(res.body.erro).toBeTruthy();
@@ -60,7 +70,7 @@ describe('aceitar uma doação', () => {
   it('marca a doação como aceita pela ONG', async () => {
     const criada = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01', enderecoRetirada: 'Rua das Flores, 123' });
+      .send({ categoriaId: await buscarIdCategoria(), tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01', enderecoRetirada: 'Rua das Flores, 123' });
  
     const res = await request(app)
       .post(`/api/doacoes/${criada.body.id}/aceitar`)
@@ -74,7 +84,7 @@ describe('aceitar uma doação', () => {
   it('remove a doação da lista de disponíveis depois de aceita', async () => {
     const criada = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01', enderecoRetirada: 'Rua das Flores, 123' });
+      .send({ categoriaId: await buscarIdCategoria(), tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01', enderecoRetirada: 'Rua das Flores, 123' });
  
     await request(app)
       .post(`/api/doacoes/${criada.body.id}/aceitar`)
@@ -87,7 +97,7 @@ describe('aceitar uma doação', () => {
   it('recusa aceitar uma doação que já foi aceita por outra ONG', async () => {
     const criada = await request(app)
       .post('/api/doacoes')
-      .send({ tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01', enderecoRetirada: 'Rua das Flores, 123' });
+      .send({ categoriaId: await buscarIdCategoria(), tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01', enderecoRetirada: 'Rua das Flores, 123' });
  
     await request(app)
       .post(`/api/doacoes/${criada.body.id}/aceitar`)
@@ -103,10 +113,11 @@ describe('aceitar uma doação', () => {
 });
 
 describe('doador vê a situação das próprias doações', () => {
-  const publicar = (doador, extra = {}) =>
+  const publicar = async (doador, extra = {}) =>
     request(app)
       .post('/api/doacoes')
       .send({
+        categoriaId: await buscarIdCategoria(),
         tipo: 'Sopa',
         quantidade: '10 porções',
         validade: '2026-08-01',
@@ -187,10 +198,11 @@ describe('doador vê a situação das próprias doações', () => {
 });
 
 describe('doador cancela uma doação ainda disponível', () => {
-  const publicar = (doador, extra = {}) =>
+  const publicar = async (doador, extra = {}) =>
     request(app)
       .post('/api/doacoes')
       .send({
+        categoriaId: await buscarIdCategoria(),
         tipo: 'Sopa',
         quantidade: '10 porções',
         validade: '2026-08-01',
@@ -282,10 +294,11 @@ describe('doador cancela uma doação ainda disponível', () => {
 describe('endereço de retirada só aparece para a ONG depois do aceite', () => {
   const ENDERECO = 'Rua das Flores, 123 - Centro';
 
-  const publicar = (extra = {}) =>
+  const publicar = async (extra = {}) =>
     request(app)
       .post('/api/doacoes')
       .send({
+        categoriaId: await buscarIdCategoria(),
         tipo: 'Sopa',
         quantidade: '10 porções',
         validade: '2026-08-01',
