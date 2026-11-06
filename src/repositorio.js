@@ -1,40 +1,13 @@
-// Camada de acesso ao banco de dados
-import { query } from './db.js';
+// Camada de acesso ao banco de dados (PostgreSQL: marcadores $1, $2, …)
+import { query, AGORA_UTC } from './db.js';
 
-// nLista as categorias de alimento
-export async function listarCategorias() {
 
-  const { rows } = await query(
-    `
-    SELECT id,
-           nome
-    FROM categorias
-    ORDER BY nome ASC
-    `
-  );
-
-  return rows;
-}
-
-export async function buscarCategoriaPorId(id) {
-
-  const { rows } = await query(
-    `
-    SELECT id,
-           nome
-    FROM categorias
-    WHERE id = ?
-    `,
-    [id]
-  );
-
-  return rows[0];
-}
+const ID_MAXIMO = 2147483647;
+const idPossivel = (id) => Number.isInteger(id) && id >= 1 && id <= ID_MAXIMO;
 
 // Insere uma nova doação
 export async function inserir({
   tipo,
-  categoriaId,
   quantidade,
   validade,
   doador = null,
@@ -45,18 +18,16 @@ export async function inserir({
     `
     INSERT INTO doacoes (
       tipo,
-      categoria_id,
       quantidade,
       validade,
       doador,
       endereco_retirada
     )
-    VALUES (?, ?, ?, ?, ?, ?)
-    RETURNING id
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING *
     `,
     [
       tipo,
-      categoriaId,
       quantidade,
       validade,
       doador,
@@ -64,8 +35,7 @@ export async function inserir({
     ]
   );
 
-  // Relê com o JOIN para devolver também o nome da categoria.
-  return buscarPorId(rows[0].id);
+  return rows[0];
 }
 
 // Lista todas as doações de um doador (disponíveis e aceitas), da mais recente
@@ -74,13 +44,11 @@ export async function listarPorDoador(doador) {
 
   const { rows } = await query(
     `
-    SELECT d.*,
-           c.nome AS categoria
-    FROM doacoes d
-    LEFT JOIN categorias c ON c.id = d.categoria_id
-    WHERE d.doador = ?
-    ORDER BY d.criada_em DESC,
-             d.id DESC
+    SELECT *
+    FROM doacoes
+    WHERE doador = $1
+    ORDER BY criada_em DESC,
+             id DESC
     `,
     [doador]
   );
@@ -94,22 +62,19 @@ export async function listarDisponiveis() {
 
   const { rows } = await query(
     `
-    SELECT d.id,
-           d.tipo,
-           d.categoria_id,
-           c.nome AS categoria,
-           d.quantidade,
-           d.validade,
-           d.status,
-           d.ong,
-           d.criada_em,
-           d.doador
-    FROM doacoes d
-    LEFT JOIN categorias c ON c.id = d.categoria_id
-    WHERE d.status = 'disponivel'
-    ORDER BY d.validade ASC,
-             d.criada_em DESC,
-             d.id DESC
+    SELECT id,
+           tipo,
+           quantidade,
+           validade,
+           status,
+           ong,
+           criada_em,
+           doador
+    FROM doacoes
+    WHERE status = 'disponivel'
+    ORDER BY validade ASC,
+             criada_em DESC,
+             id DESC
     `
   );
 
@@ -119,13 +84,13 @@ export async function listarDisponiveis() {
 // Busca uma doação pelo ID
 export async function buscarPorId(id) {
 
+  if (!idPossivel(id)) return undefined;
+
   const { rows } = await query(
     `
-    SELECT d.*,
-           c.nome AS categoria
-    FROM doacoes d
-    LEFT JOIN categorias c ON c.id = d.categoria_id
-    WHERE d.id = ?
+    SELECT *
+    FROM doacoes
+    WHERE id = $1
     `,
     [id]
   );
@@ -136,12 +101,14 @@ export async function buscarPorId(id) {
 // Doador cancela uma doação, se ainda estiver disponível
 export async function cancelar(id, doador) {
 
+  if (!idPossivel(id)) return undefined;
+
   const { rows } = await query(
     `
     UPDATE doacoes
     SET status = 'cancelada'
-    WHERE id = ?
-      AND doador = ?
+    WHERE id = $1
+      AND doador = $2
       AND status = 'disponivel'
     RETURNING *
     `,
@@ -154,17 +121,22 @@ export async function cancelar(id, doador) {
   return rows[0];
 }
 
-// Aceita uma doação
+// Aceita uma doação.
+// A condição `status = 'disponivel'` no próprio UPDATE é o que garante a reserva
+// exclusiva: com duas ONGs aceitando ao mesmo tempo, o PostgreSQL faz a segunda
+// esperar a primeira terminar, reavalia a condição e não atualiza nada.
 export async function aceitar(id, ong) {
+
+  if (!idPossivel(id)) return undefined;
 
   const { rows } = await query(
     `
     UPDATE doacoes
     SET
       status = 'aceita',
-      ong = ?,
-      aceita_em = datetime('now')
-    WHERE id = ?
+      ong = $1,
+      aceita_em = ${AGORA_UTC}
+    WHERE id = $2
       AND status = 'disponivel'
     RETURNING *
     `,
@@ -192,12 +164,14 @@ export async function listarPendentesColeta() {
 
 // A atualização condicional evita registrar a coleta duas vezes.
 export async function coletar(id, voluntario) {
+  if (!idPossivel(id)) return undefined;
+
   const { rows } = await query(`
     UPDATE doacoes
     SET status = 'coletada',
-        voluntario = ?,
-        coletada_em = datetime('now')
-    WHERE id = ? AND status = 'aceita'
+        voluntario = $1,
+        coletada_em = ${AGORA_UTC}
+    WHERE id = $2 AND status = 'aceita'
     RETURNING id, tipo, quantidade, validade, status, ong, doador,
               criada_em, aceita_em, voluntario, coletada_em
   `, [voluntario, id]);
@@ -206,11 +180,13 @@ export async function coletar(id, voluntario) {
 
 // Contagem pelo instante de aceite, não pelo status atual: doações já
 // coletadas continuam contando no mês em que foram aceitas.
+// COUNT(*) no PostgreSQL é bigint e o driver o devolve como string ("3");
+// o ::int mantém o número que o SQLite devolvia.
 export async function contarAceitasNoPeriodo(inicio, fim) {
   const { rows } = await query(`
-    SELECT COUNT(*) AS total
+    SELECT COUNT(*)::int AS total
     FROM doacoes
-    WHERE aceita_em >= ? AND aceita_em < ?
+    WHERE aceita_em >= $1 AND aceita_em < $2
       AND status IN ('aceita', 'coletada')
   `, [inicio, fim]);
   return rows[0].total;
