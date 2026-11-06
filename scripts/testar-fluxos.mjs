@@ -1,33 +1,46 @@
-// Testes de integração das regras e persistência, sem dependências externas.
-// Execute: npm run test:smoke
+// Testes de integração das regras e persistência contra o PostgreSQL de TESTE.
+// Execute: npm run db:subir && npm run test:smoke
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { createRequire } from 'node:module';
+import pg from 'pg';
+import { URL_TESTE, validarBancoDeTeste } from '../tests/banco-de-teste.js';
 
-const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite');
-const pasta = mkdtempSync(join(tmpdir(), 'pratocheio-test-'));
-const arquivo = join(pasta, 'legado.sqlite');
+// Este script recria a tabela `doacoes`: só roda num banco de teste (ADR 0002).
+validarBancoDeTeste(URL_TESTE);
+process.env.NODE_ENV = 'test';
+process.env.DATABASE_URL = URL_TESTE;
+
+async function comBancoDeTeste(acao) {
+  const cliente = new pg.Client({ connectionString: URL_TESTE });
+  try {
+    await cliente.connect();
+  } catch (erro) {
+    throw new Error(`Não consegui conectar no banco de teste (${erro.message}). Suba o banco: npm run db:subir`);
+  }
+  try {
+    return await acao(cliente);
+  } finally {
+    await cliente.end();
+  }
+}
 
 // Simula o schema anterior, provando que a migração não apaga o histórico.
-const legado = new DatabaseSync(arquivo);
-legado.exec(`
-  CREATE TABLE doacoes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tipo TEXT NOT NULL,
-    quantidade TEXT NOT NULL,
-    validade TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'disponivel',
-    ong TEXT,
-    criada_em TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  INSERT INTO doacoes (tipo, quantidade, validade, status, ong, criada_em)
-  VALUES ('Pão', '10', '2026-09-20', 'aceita', 'ONG Antiga', '2026-09-10 12:00:00');
-`);
-legado.close();
+await comBancoDeTeste(async (legado) => {
+  await legado.query('DROP TABLE IF EXISTS doacoes');
+  await legado.query(`
+    CREATE TABLE doacoes (
+      id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      tipo TEXT NOT NULL,
+      quantidade TEXT NOT NULL,
+      validade TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'disponivel',
+      ong TEXT,
+      criada_em TEXT NOT NULL
+    );
+    INSERT INTO doacoes (tipo, quantidade, validade, status, ong, criada_em)
+    VALUES ('Pão', '10', '2026-09-20', 'aceita', 'ONG Antiga', '2026-09-10 12:00:00');
+  `);
+});
 
-process.env.DATABASE_FILE = arquivo;
 const banco = await import('../src/db.js');
 const doacoes = await import('../src/doacoes.js');
 
@@ -99,5 +112,7 @@ try {
   console.log('OK — migração legada, publicação, aceite, coleta, histórico mensal, validações e persistência.');
 } finally {
   await banco.encerrar();
-  rmSync(pasta, { recursive: true, force: true });
+  // A tabela ficou com o schema "legado"; derrubá-la deixa o banco de teste limpo
+  // (a próxima migrar() recria o schema completo, com todos os defaults).
+  await comBancoDeTeste((cliente) => cliente.query('DROP TABLE IF EXISTS doacoes'));
 }

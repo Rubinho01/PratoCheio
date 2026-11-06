@@ -1,116 +1,162 @@
-// Conexão com o banco. Já vem pronto — não precisa mexer agora.
+// Conexão com o banco: PostgreSQL (driver `pg`, com pool de conexões).
 //
-// UNIDADE 1: SQLite, embutido no Node (módulo `node:sqlite`) — nada para instalar.
-// UNIDADE 3: este arquivo será refatorado para PostgreSQL. A interface abaixo
-//            (`query` devolvendo `{ rows }`) foi desenhada para que a troca fique
-//            contida aqui, sem espalhar mudança pelo resto do código.
-// `node:sqlite` é módulo embutido do Node 22+. Carregado via createRequire porque
-// algumas ferramentas (como o Vite/Vitest) ainda não o reconhecem como embutido.
-import { createRequire } from 'node:module';
-const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite');
+// Contrato com o resto do código (não mudou na migração do SQLite):
+//   query(sql, valores) -> { rows, alteradas }
+// Toda a diferença entre os bancos fica contida aqui e em src/repositorio.js;
+// src/doacoes.js (regras de negócio) não sabe qual banco está por trás.
+//
+// A conexão vem de DATABASE_URL e NÃO existe banco padrão (ADR 0002): sem a
+// variável, nada conecta. Isso impede subir ou testar contra o banco errado por
+// esquecimento.
+import pg from 'pg';
 
-const ARQUIVO = process.env.DATABASE_FILE || 'dados.sqlite';
+const { Pool } = pg;
 
-let db;
+// Instante atual em UTC, no mesmo formato de texto que o SQLite usava com
+// datetime('now'): 'AAAA-MM-DD HH:MM:SS'. As datas continuam TEXT de propósito:
+// src/doacoes.js compara intervalos como strings e a API devolve esse formato.
+// O repositório importa esta constante para o formato ser um só em todo lugar.
+export const AGORA_UTC =
+  "to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')";
 
+let pool;
+
+function criarPool() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL não definida. Copie .env.example para .env e suba o banco ' +
+      '(docker compose up -d --wait db).'
+    );
+  }
+  const novo = new Pool({ connectionString: url });
+  // Erro em conexão ociosa não pode derrubar o processo.
+  novo.on('error', (erro) => console.error('erro no pool do banco:', erro.message));
+  return novo;
+}
+
+/** Pool de conexões, criado sob demanda. */
 export function conexao() {
-  if (!db) db = new DatabaseSync(ARQUIVO);
-  return db;
+  if (!pool) pool = criarPool();
+  return pool;
+}
+
+/**
+ * Converte marcadores `?` em `$1, $2, …`, ignorando o que está entre aspas
+ * (literais 'texto' e identificadores "coluna"). Existe para que chamadas
+ * escritas no estilo antigo (`WHERE id = ?`) continuem funcionando; o código
+ * novo deve usar `$1, $2, …` direto, e SQL sem `?` passa intacto.
+ */
+export function converterMarcadores(sql) {
+  if (!sql.includes('?')) return sql;
+  let saida = '';
+  let n = 0;
+  let aspas = null;
+  for (const c of sql) {
+    if (aspas) {
+      // '' dentro de literal fecha e reabre na hora: continua "entre aspas".
+      if (c === aspas) aspas = null;
+    } else if (c === "'" || c === '"') {
+      aspas = c;
+    } else if (c === '?') {
+      saida += `$${++n}`;
+      continue;
+    }
+    saida += c;
+  }
+  return saida;
 }
 
 /**
  * Executa uma consulta e devolve { rows }.
- * Use `?` como marcador de parâmetro (evita injeção de SQL):
- *   query('SELECT * FROM doacoes WHERE id = ?', [id])
+ * Use `$1, $2, …` como marcadores de parâmetro (evita injeção de SQL):
+ *   query('SELECT * FROM doacoes WHERE id = $1', [id])
+ * `alteradas` traz o número de linhas afetadas (INSERT/UPDATE/DELETE).
  */
 export async function query(sql, valores = []) {
-  const stmt = conexao().prepare(sql);
-  const ehLeitura = /^\s*(select|with)/i.test(sql) || /returning/i.test(sql);
-  if (ehLeitura) return { rows: stmt.all(...valores) };
-  const info = stmt.run(...valores);
-  return { rows: [], alteradas: info.changes };
+  const resultado = await conexao().query(converterMarcadores(sql), valores);
+  return { rows: resultado.rows, alteradas: resultado.rowCount };
 }
 
-const CATEGORIAS_INICIAIS = ['Perecível', 'Industrializado', 'Hortifrúti'];
-
+/**
+ * Cria o schema, se ainda não existir. Rodado por `npm run db:migrar` e ao subir
+ * o servidor. É idempotente e seguro com várias instâncias subindo juntas: roda
+ * numa transação com trava consultiva, então só uma migra por vez.
+ */
 export async function migrar() {
-  conexao().exec(`
-    CREATE TABLE IF NOT EXISTS categorias (
-      id    INTEGER PRIMARY KEY AUTOINCREMENT,
-      nome  TEXT NOT NULL UNIQUE
-    )
-  `);
+  const cliente = await conexao().connect();
+  try {
+    await cliente.query('BEGIN');
+    await cliente.query("SELECT pg_advisory_xact_lock(hashtext('pratocheio:migrar'))");
 
-  const inserirCategoria = conexao().prepare(
-    'INSERT OR IGNORE INTO categorias (nome) VALUES (?)'
-  );
-  for (const nome of CATEGORIAS_INICIAIS) inserirCategoria.run(nome);
+    await cliente.query(`
+      CREATE TABLE IF NOT EXISTS doacoes (
+        id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        tipo        TEXT NOT NULL,
+        quantidade  TEXT NOT NULL,
+        validade    TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'disponivel',
+        ong         TEXT,
+        criada_em   TEXT NOT NULL DEFAULT (${AGORA_UTC}),
+        doador      TEXT,
+        endereco_retirada TEXT,
+        aceita_em   TEXT,
+        coletada_em TEXT,
+        voluntario  TEXT
+      )
+    `);
 
-  conexao().exec(`
-    CREATE TABLE IF NOT EXISTS doacoes (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      tipo        TEXT NOT NULL,
-      quantidade  TEXT NOT NULL,
-      validade    TEXT NOT NULL,
-      status      TEXT NOT NULL DEFAULT 'disponivel',
-      ong         TEXT,
-      criada_em   TEXT NOT NULL DEFAULT (datetime('now')),
-      doador      TEXT,
-      endereco_retirada TEXT,
-      aceita_em   TEXT,
-      coletada_em TEXT,
-      voluntario  TEXT,
-      categoria_id INTEGER REFERENCES categorias (id)
-    )
-  `);
+    // Migração incremental para bancos já existentes: ADD COLUMN preserva as doações.
+    for (const coluna of [
+      'doador', 'endereco_retirada', 'aceita_em', 'coletada_em', 'voluntario'
+    ]) {
+      await cliente.query(`ALTER TABLE doacoes ADD COLUMN IF NOT EXISTS ${coluna} TEXT`);
+    }
 
-  const colunas = conexao().prepare('PRAGMA table_info(doacoes)').all();
-  if (!colunas.some((coluna) => coluna.name === 'doador')) {
-    conexao().exec('ALTER TABLE doacoes ADD COLUMN doador TEXT');
+    // Registros aceitos antes deste incremento não tinham horário do aceite.
+    // Usa a criação apenas como estimativa, sem alterar o status ou a ONG.
+    await cliente.query(`
+      UPDATE doacoes
+      SET aceita_em = criada_em
+      WHERE status IN ('aceita', 'coletada') AND aceita_em IS NULL
+    `);
+
+    await cliente.query('CREATE INDEX IF NOT EXISTS idx_doacoes_doador ON doacoes (doador)');
+    await cliente.query('CREATE INDEX IF NOT EXISTS idx_doacoes_status ON doacoes (status)');
+    await cliente.query('CREATE INDEX IF NOT EXISTS idx_doacoes_aceita_em ON doacoes (aceita_em)');
+
+    await cliente.query('COMMIT');
+  } catch (erro) {
+    await cliente.query('ROLLBACK').catch(() => {});
+    throw erro;
+  } finally {
+    cliente.release();
   }
-  if (!colunas.some((coluna) => coluna.name === 'endereco_retirada')) {
-    conexao().exec('ALTER TABLE doacoes ADD COLUMN endereco_retirada TEXT');
+}
+
+/**
+ * Apaga todos os dados. Usado pelos testes — e SÓ por eles (ADR 0002): recusa
+ * rodar fora de NODE_ENV=test ou num banco cujo nome não termine em `_test`.
+ * Na dúvida, não apaga nada.
+ */
+export async function limparBanco() {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('limparBanco() só roda com NODE_ENV=test. Nada foi apagado.');
   }
-  if (!colunas.some((coluna) => coluna.name === 'categoria_id')) {
-    conexao().exec(
-      'ALTER TABLE doacoes ADD COLUMN categoria_id INTEGER REFERENCES categorias (id)'
+  const { rows } = await conexao().query('SELECT current_database() AS nome');
+  const nome = rows[0].nome;
+  if (!nome.endsWith('_test')) {
+    throw new Error(
+      `limparBanco() recusou: o banco "${nome}" não termina em _test. Nada foi apagado.`
     );
   }
-
-  // Migração incremental para bancos já existentes: ALTER TABLE preserva as doações.
-  for (const coluna of ['aceita_em', 'coletada_em', 'voluntario']) {
-    if (!colunas.some((existente) => existente.name === coluna)) {
-      conexao().exec(`ALTER TABLE doacoes ADD COLUMN ${coluna} TEXT`);
-    }
-  }
-
-  // Registros aceitos antes deste incremento não tinham horário do aceite.
-  // Usa a criação apenas como estimativa, sem alterar o status ou a ONG.
-  conexao().exec(`
-    UPDATE doacoes
-    SET aceita_em = criada_em
-    WHERE status IN ('aceita', 'coletada') AND aceita_em IS NULL
-  `);
-
-  conexao().exec(
-    'CREATE INDEX IF NOT EXISTS idx_doacoes_doador ON doacoes (doador)'
-  );
-  conexao().exec(
-    'CREATE INDEX IF NOT EXISTS idx_doacoes_status ON doacoes (status)'
-  );
-  conexao().exec(
-    'CREATE INDEX IF NOT EXISTS idx_doacoes_aceita_em ON doacoes (aceita_em)'
-  );
-  conexao().exec(
-    'CREATE INDEX IF NOT EXISTS idx_doacoes_categoria ON doacoes (categoria_id)'
-  );
-}
-
-/** Apaga todos os dados. Usado pelos testes. */
-export async function limparBanco() {
-  conexao().exec('DELETE FROM doacoes');
+  await conexao().query('DELETE FROM doacoes');
 }
 
 export async function encerrar() {
-  if (db) { db.close(); db = undefined; }
+  if (pool) {
+    const atual = pool;
+    pool = undefined;
+    await atual.end();
+  }
 }
