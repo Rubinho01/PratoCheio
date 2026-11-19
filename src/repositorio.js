@@ -5,9 +5,41 @@ import { query, AGORA_UTC } from './db.js';
 const ID_MAXIMO = 2147483647;
 const idPossivel = (id) => Number.isInteger(id) && id >= 1 && id <= ID_MAXIMO;
 
+export async function listarCategorias() {
+
+  const { rows } = await query(
+    `
+    SELECT id,
+           nome
+    FROM categorias
+    ORDER BY nome ASC
+    `
+  );
+
+  return rows;
+}
+
+export async function buscarCategoriaPorId(id) {
+
+  if (!idPossivel(id)) return undefined;
+
+  const { rows } = await query(
+    `
+    SELECT id,
+           nome
+    FROM categorias
+    WHERE id = $1
+    `,
+    [id]
+  );
+
+  return rows[0];
+}
+
 // Insere uma nova doação
 export async function inserir({
   tipo,
+  categoriaId,
   quantidade,
   validade,
   doador = null,
@@ -18,16 +50,18 @@ export async function inserir({
     `
     INSERT INTO doacoes (
       tipo,
+      categoria_id,
       quantidade,
       validade,
       doador,
       endereco_retirada
     )
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING *
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING id
     `,
     [
       tipo,
+      categoriaId,
       quantidade,
       validade,
       doador,
@@ -35,7 +69,8 @@ export async function inserir({
     ]
   );
 
-  return rows[0];
+  // Relê com o JOIN para devolver também o nome da categoria.
+  return buscarPorId(rows[0].id);
 }
 
 // Lista todas as doações de um doador (disponíveis e aceitas), da mais recente
@@ -44,11 +79,13 @@ export async function listarPorDoador(doador) {
 
   const { rows } = await query(
     `
-    SELECT *
-    FROM doacoes
-    WHERE doador = $1
-    ORDER BY criada_em DESC,
-             id DESC
+    SELECT d.*,
+           c.nome AS categoria
+    FROM doacoes d
+    LEFT JOIN categorias c ON c.id = d.categoria_id
+    WHERE d.doador = $1
+    ORDER BY d.criada_em DESC,
+             d.id DESC
     `,
     [doador]
   );
@@ -62,19 +99,22 @@ export async function listarDisponiveis() {
 
   const { rows } = await query(
     `
-    SELECT id,
-           tipo,
-           quantidade,
-           validade,
-           status,
-           ong,
-           criada_em,
-           doador
-    FROM doacoes
-    WHERE status = 'disponivel'
-    ORDER BY validade ASC,
-             criada_em DESC,
-             id DESC
+    SELECT d.id,
+           d.tipo,
+           d.categoria_id,
+           c.nome AS categoria,
+           d.quantidade,
+           d.validade,
+           d.status,
+           d.ong,
+           d.criada_em,
+           d.doador
+    FROM doacoes d
+    LEFT JOIN categorias c ON c.id = d.categoria_id
+    WHERE d.status = 'disponivel'
+    ORDER BY d.validade ASC,
+             d.criada_em DESC,
+             d.id DESC
     `
   );
 
@@ -88,9 +128,11 @@ export async function buscarPorId(id) {
 
   const { rows } = await query(
     `
-    SELECT *
-    FROM doacoes
-    WHERE id = $1
+    SELECT d.*,
+           c.nome AS categoria
+    FROM doacoes d
+    LEFT JOIN categorias c ON c.id = d.categoria_id
+    WHERE d.id = $1
     `,
     [id]
   );

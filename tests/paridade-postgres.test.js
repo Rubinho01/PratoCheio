@@ -10,8 +10,18 @@ const app = criarApp();
 beforeEach(async () => { await migrar(); await limparBanco(); });
 afterAll(async () => { await encerrar(); });
 
-const publicar = (extra = {}) =>
+// A categoria é obrigatória (H7): busca o id pela API, sem depender de ID fixo.
+async function buscarIdCategoria() {
+  const resposta = await request(app).get('/api/categorias');
+  expect(resposta.status).toBe(200);
+  const categoria = resposta.body.find((item) => item.nome === 'Perecível');
+  expect(categoria).toBeDefined();
+  return categoria.id;
+}
+
+const publicar = async (extra = {}) =>
   request(app).post('/api/doacoes').send({
+    categoriaId: await buscarIdCategoria(),
     tipo: 'Sopa', quantidade: '10 porções', validade: '2026-12-01',
     doador: 'Padaria do Zé', enderecoRetirada: 'Rua das Flores, 123', ...extra
   });

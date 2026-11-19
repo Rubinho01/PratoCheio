@@ -19,6 +19,9 @@ const { Pool } = pg;
 export const AGORA_UTC =
   "to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')";
 
+// Categorias de alimento (H7). Semeadas na migração; a lista é a do ADR/analise.md.
+const CATEGORIAS_INICIAIS = ['Perecível', 'Industrializado', 'Hortifrúti'];
+
 let pool;
 
 function criarPool() {
@@ -89,6 +92,20 @@ export async function migrar() {
     await cliente.query('BEGIN');
     await cliente.query("SELECT pg_advisory_xact_lock(hashtext('pratocheio:migrar'))");
 
+    // A tabela de categorias vem antes: doacoes.categoria_id aponta para ela.
+    await cliente.query(`
+      CREATE TABLE IF NOT EXISTS categorias (
+        id    INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        nome  TEXT NOT NULL UNIQUE
+      )
+    `);
+    for (const nome of CATEGORIAS_INICIAIS) {
+      await cliente.query(
+        'INSERT INTO categorias (nome) VALUES ($1) ON CONFLICT (nome) DO NOTHING',
+        [nome]
+      );
+    }
+
     await cliente.query(`
       CREATE TABLE IF NOT EXISTS doacoes (
         id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -102,7 +119,8 @@ export async function migrar() {
         endereco_retirada TEXT,
         aceita_em   TEXT,
         coletada_em TEXT,
-        voluntario  TEXT
+        voluntario  TEXT,
+        categoria_id INTEGER REFERENCES categorias (id)
       )
     `);
 
@@ -112,6 +130,9 @@ export async function migrar() {
     ]) {
       await cliente.query(`ALTER TABLE doacoes ADD COLUMN IF NOT EXISTS ${coluna} TEXT`);
     }
+    await cliente.query(
+      'ALTER TABLE doacoes ADD COLUMN IF NOT EXISTS categoria_id INTEGER REFERENCES categorias (id)'
+    );
 
     // Registros aceitos antes deste incremento não tinham horário do aceite.
     // Usa a criação apenas como estimativa, sem alterar o status ou a ONG.
