@@ -2,22 +2,74 @@
 
 *Trabalho 3 · confronto do produto com os critérios de aceite escritos na Unidade 1*
 
-Copie aqui os critérios de aceite do seu `docs/analise.md` e marque um por um. **Um "não atende" bem justificado vale mais que um "sim" sem evidência.**
+Os critérios abaixo foram copiados de `docs/analise.md`, como estão, um por linha. A coluna **#** só identifica a origem: **H0**, **H1** e **H7** são os critérios da seção “Critérios de aceite”; **U3-CA1…CA3**, **U3-ER1…ER4** e **U3-F1…F3** são os critérios, os casos de erro e as fatias da história de confirmação de coleta (Unidade 3). Status possíveis: **atende**, **parcial**, **não atende** ou **não verificável**.
+
+**Resultado:** 17 critérios — 13 atendem, 3 parciais, 0 não atendem, 1 não verificável. *(Parciais: H0-2, H1-1, H7-2. Não verificável: H1-2.)*
+
+**Execução de referência:** `npm test` (Vitest, PostgreSQL 16) → ___ testes passando, ___ falhando, em ___/___/2026 *(preencher com o resultado real antes de entregar)*. O repositório não tem `.github/workflows/`, embora o README cite o CI; por isso **não há link de execução do CI** — a evidência é o nome do teste e o passo do roteiro (`docs/demo.md`).
 
 | # | Critério de aceite (da Unidade 1) | Atende? | Evidência |
 |:--:|---|:--:|---|
-| 1 |  | sim / parcial / não | teste, demo, execução do CI |
-| 2 |  |  |  |
-| 3 |  |  |  |
+| H0-1 | Dado que existe uma doação publicada, dentro da validade e ainda não aceita por nenhuma ONG, quando uma ONG aceitar essa doação, então ela deve ficar reservada para essa ONG e deixar de estar disponível para outras ONGs. | atende | `tests/doacoes.test.js` › “marca a doação como aceita pela ONG”; “remove a doação da lista de disponíveis depois de aceita”; “recusa aceitar uma doação que já foi aceita por outra ONG”<br>`tests/paridade-postgres.test.js` › “com várias ONGs aceitando ao mesmo tempo, só uma leva a doação”<br>Roteiro: passos 3, 9 e 10 |
+| H0-2 | Dado que o doador possui uma doação de alimento ainda não publicada, quando informar os dados obrigatórios, incluindo a validade, e confirmar o cadastro, então a doação deve ser registrada como disponível enquanto estiver dentro do prazo de validade. | parcial | `tests/doacoes.test.js` › “mostra a doação publicada na lista de disponíveis”; “mostra a doação ainda não aceita como disponível, sem ONG”<br>Roteiro: passos 2 e 8<br>**Falta:** a doação não deixa de estar disponível depois da validade → ver “Critérios que não atendem” |
+| H1-1 | Dado que o doador está cadastrado e apto a publicar uma doação, quando informar o tipo do alimento, a quantidade e a validade e confirmar o cadastro, então a doação deve ser publicada sem exigir outras informações obrigatórias. | parcial | `tests/categorias.test.js` › “H7-CA3: publica só com categoria, quantidade e validade (sem descrição longa) e devolve a categoria”<br>`tests/doacoes.test.js` › “recusa doação sem os campos obrigatórios”<br>Roteiro: passo 2<br>**Falta:** além de tipo, quantidade e validade, o cadastro exige categoria e endereço de retirada → ver “Critérios que não atendem” |
+| H1-2 | Dado que o doador possui todas as informações necessárias para a doação, quando iniciar o cadastro e preencher os dados solicitados, então deve ser possível concluir a publicação em menos de 1 minuto em condições normais de uso. | não verificável | Nenhuma: não há cronometragem do cadastro. O RNF1 de `docs/projeto.md` prevê medir com os 2 doadores do piloto, e isso não foi feito → ver “Mudanças de critério” |
+| H7-1 | Dado que o doador está cadastrando uma nova doação, quando tentar publicá-la sem selecionar uma categoria de alimento, então a publicação não deve ser concluída até que uma categoria válida seja selecionada. | atende | `tests/categorias.test.js` › “H7-CA1: recusa publicar sem categoria e não cria a doação”; “H7-CA1: recusa categoria inexistente ou inválida”<br>Roteiro: passo 7 |
+| H7-2 | Dado que o doador está cadastrando uma nova doação, quando tentar publicá-la sem informar a validade em horas, então a publicação não deve ser concluída e a validade deve ser indicada como obrigatória. | parcial | `tests/categorias.test.js` › “H7-CA2: recusa publicar sem validade e indica que ela é obrigatória”<br>**Falta:** a validade é uma data (AAAA-MM-DD), não “em horas” → ver “Critérios que não atendem” |
+| H7-3 | Dado que o doador informou a categoria, a quantidade e a validade, quando confirmar o cadastro, então a doação deve ser publicada sem exigir o preenchimento de uma descrição textual longa. | atende | `tests/categorias.test.js` › “H7-CA3: publica só com categoria, quantidade e validade (sem descrição longa) e devolve a categoria”<br>Roteiro: passo 2 (o formulário não tem campo de descrição) |
+| U3-CA1 | **CA1 — Fila de coleta:** dado que existem doações em diferentes estados, quando o voluntário consulta a fila de coletas pendentes, então somente as aceitas e ainda não coletadas aparecem, sem endereço de retirada. | atende | `tests/aula11-parte-b-coleta.test.js` › “CA1: apresenta na fila somente doações aceitas pendentes de coleta, sem divulgar o endereço”<br>`tests/novas-historias.test.js` › “lista somente as aceitas e não expõe o endereço de retirada”<br>Roteiro: passo 3 |
+| U3-CA2 | **CA2 — Confirmação:** dado que uma doação está aceita, quando um voluntário identificado confirma a coleta, então o status fica `coletada`, o nome é registrado, o horário da coleta é preenchido e a ONG e o horário de aceite permanecem inalterados. | atende | `tests/aula11-parte-b-coleta.test.js` › “CA2: ao confirmar a coleta registra o voluntário e preserva a ONG e o horário de aceite”<br>`tests/novas-historias.test.js` › “registra o responsável, o momento da coleta e muda o status”<br>Roteiro: passos 4 e 6 |
+| U3-CA3 | **CA3 — Histórico:** dado que duas doações foram aceitas, quando uma delas é coletada, então ela sai da fila e passa a constar como `coletada` no histórico do doador, sem afetar a outra. | atende | `tests/aula11-parte-b-coleta.test.js` › “CA3: retira a doação coletada da fila, mas mantém sua situação no histórico do doador”<br>Roteiro: passos 4 e 6 |
+| U3-ER1 | **ER1:** tentar coletar uma doação disponível deve ser recusado sem mudar o status. | atende | `tests/aula11-parte-b-coleta.test.js` › “ER1: recusa coletar uma doação ainda disponível e não modifica seu estado” |
+| U3-ER2 | **ER2:** voluntário com nome vazio deve ser recusado e a coleta permanecer pendente. | atende | `tests/aula11-parte-b-coleta.test.js` › “ER2: recusa confirmação com nome de voluntário em branco e mantém a coleta pendente” |
+| U3-ER3 | **ER3:** repetir uma confirmação deve ser recusado e preservar o primeiro voluntário e o horário. | atende | `tests/aula11-parte-b-coleta.test.js` › “ER3: recusa uma segunda coleta e preserva o responsável e a data da primeira”<br>`tests/paridade-postgres.test.js` › “com vários voluntários coletando ao mesmo tempo, só um registra a coleta” |
+| U3-ER4 | **ER4:** coletar uma doação inexistente deve devolver erro informativo. | atende | `tests/aula11-parte-b-coleta.test.js` › “ER4: recusa a coleta de uma doação inexistente com mensagem específica” |
+| U3-F1 | **Primeira fatia (Parte A) — confirmação da coleta:** dado que uma ONG aceitou a doação, quando um voluntário informa seu nome e confirma a retirada, então o sistema registra o voluntário e o momento da coleta e altera o estado para `coletada`. | atende | Mesma evidência de U3-CA2 (testes CA2 e “registra o responsável, o momento da coleta e muda o status”); roteiro: passo 4 |
+| U3-F2 | **Fatia 2 — acompanhamento das pendentes:** dado que existem doações disponíveis, aceitas e coletadas, quando o voluntário consulta a fila, então só aparecem as aceitas ainda não coletadas, sem endereço de retirada. | atende | Mesma evidência de U3-CA1; roteiro: passo 3 |
+| U3-F3 | **Fatia 3 — histórico após a coleta:** dado que a coleta foi confirmada, quando o doador consulta seu histórico, então a doação aparece como coletada e a ONG/horário de aceite permanecem registrados. | atende | Mesma evidência de U3-CA3 e do histórico em U3-CA2; roteiro: passo 6 |
 
 ## Critérios que não atendem — por quê
 
-(Para cada "parcial" ou "não": o que falta, por que ficou de fora e o que seria necessário.)
+**H0-2 — parcial (“disponível enquanto estiver dentro do prazo de validade”).**
+- *O que funciona:* a doação é registrada como `disponivel` ao ser publicada e a lista das ONGs vem ordenada pela validade (as que vencem antes aparecem primeiro). A tela só deixa escolher data de hoje em diante.
+- *O que falta:* nada muda quando a validade passa — a doação vencida continua `disponivel`, aparece na lista e pode ser aceita. O servidor também não recusa uma validade no passado (só a tela impede); por isso os testes automatizados usam datas já vencidas (por exemplo `2026-08-01`) e continuam passando.
+- *Por que ficou de fora:* a decisão de projeto (`docs/projeto.md`) listou duas alternativas — um job que marca doações como expiradas ou a verificação da validade a cada consulta — e nenhuma foi implementada; o histórico do repositório mostra o esforço indo para cancelamento, endereço, coleta, relatório mensal e a migração para PostgreSQL. A mitigação prometida no risco de expiração (job de expiração, regra de negócio 2) não existe no código.
+- *O que seria necessário:* filtrar `validade >= hoje` em `listarDisponiveis`, recusar o aceite de doação vencida e recusar validade passada no cadastro, com testes (para isso é preciso decidir se a validade é data ou data e hora — ver H7-2).
+
+**H1-1 — parcial (“sem exigir outras informações obrigatórias”).**
+- *O que funciona:* o doador publica informando tipo, quantidade e validade, com poucos campos e sem login; o nome do doador é opcional.
+- *O que falta:* o cadastro também exige **categoria** (H7) e **endereço de retirada**, então são cinco campos obrigatórios, e não os três previstos.
+- *Por que ficou de fora:* os dois campos entraram depois do critério e por decisões da própria equipe — a categoria pela H7 (rastreabilidade mínima, escolhida em lista pré-definida para ser rápida) e o endereço pela funcionalidade de endereço de retirada (liberado só depois do aceite), porque, nas palavras do comentário em `src/doacoes.js`, não faz sentido cadastrar uma doação sem informar onde ela será retirada. O critério H1 não foi atualizado.
+- *O que seria necessário:* decidir qual vale — e reescrever o critério H1 para “tipo, categoria, quantidade, validade e endereço”, ou tornar categoria e endereço opcionais (o que enfraquece H7 e a coleta).
+
+**H7-2 — parcial (“validade em horas”).**
+- *O que funciona:* sem validade, a publicação é recusada e a mensagem diz que ela é obrigatória (“validade é obrigatório”).
+- *O que falta:* a validade é uma **data** (`AAAA-MM-DD`, campo “Retirar até”), não um número de horas; uma doação que vence em 3 horas e outra que vence no fim do dia são indistinguíveis.
+- *Por que ficou de fora:* o formulário já nasceu com um campo de data (“Retirar até”) na H0 e a H7 acrescentou a categoria sem trocar a unidade da validade; o repositório não registra uma decisão sobre isso *(se o motivo real foi outro, ajustem esta linha)*.
+- *O que seria necessário:* trocar a coluna `validade` (hoje `TEXT` com data) por data e hora, ou por um prazo em horas somado ao horário de publicação, e adaptar formulário, regras e testes.
 
 ## Mudanças de critério ao longo do semestre
 
-(Algum critério da Unidade 1 se mostrou errado ou impossível? Qual, e o que aprenderam com isso.)
+**H1-2 — não verificável (“menos de 1 minuto”).** Não existe nenhuma medição: o sistema não registra quanto tempo o doador leva e ninguém cronometrou o cadastro com doadores reais. O RNF1 de `docs/projeto.md` já previa a medição (média de até 60 s, cronometrada com os 2 doadores do piloto) e ela não aconteceu. Para ficar verificável: cronometrar o cadastro num celular com os doadores do piloto (como prevê o RNF1) e registrar a média neste arquivo — ou medir no servidor o intervalo entre abrir o formulário e o `201`. *Aprendizado:* um critério sobre o tempo de uma pessoa precisa nascer com o método de medição definido; sem ele, vira intenção.
+
+**H1-1 e H7 entram em conflito.** A H1 diz que ninguém além de tipo, quantidade e validade pode ser obrigatório; a H7 torna a categoria obrigatória; a funcionalidade de endereço tornou o endereço obrigatório. Ficaram valendo H7 e endereço (veja a seção anterior). *Aprendizado:* os critérios foram escritos história por história e só se chocaram na implementação — vale revisar os critérios de todas as histórias juntos antes de implementar a seguinte.
+
+**H7-2 — a unidade da validade mudou de “horas” para “data”.** Ver a seção anterior. *Aprendizado:* para alimento perecível a granularidade da janela importa; “data” perde a diferença entre vencer em 3 horas e vencer à noite.
+
+**Regras de negócio 1 a 3 da análise prometiam verificação que não existe.** Não são critérios de aceite em Dado/Quando/Então, mas a análise dizia que seriam “verificadas via fluxo” ou “via teste automatizado”: (1) a ONG cancelar a coleta e a doação voltar à lista — não há essa operação (só o **doador** cancela, e só antes do aceite); (2) alerta e bloqueio de coleta após o horário limite — não implementado (ver H0-2); (3) apresentar a nova doação só às ONGs a até 5 km — não há geolocalização, corte assumido na decisão de análise (Alternativa B). Nenhuma tem teste.
+
+**Funcionalidades entregues sem critério em `docs/analise.md`.** Cancelamento pelo doador, endereço de retirada só após o aceite e relatório mensal de aceites da Marta têm critérios em `docs/implementacao-coleta-relatorio.md` e testes (`tests/doacoes.test.js`, `tests/novas-historias.test.js`), mas não na tabela acima, porque não estão em `docs/analise.md`. Também não têm critérios em `docs/analise.md` nem implementação: o filtro por proximidade da H2, a H3 (histórico para a vigilância), a H5 (modo offline e GPS), as métricas da H4 além do total mensal de aceites e a atualização de quantidade da H6 (só o cancelamento existe).
 
 ## Uso de IA
 
-(O que foi gerado com IA nesta iteração, o que vocês verificaram e o que alteraram.)
+**O que a IA fez nesta iteração: ajuda no código e na formatação de documentos.**
+
+- *Código:* restaurou as categorias de alimento (H7) sobre o PostgreSQL — tabela `categorias`, funções `listarCategorias` e `buscarCategoriaPorId`, coluna `categoria_id`, seletor de categoria no `public/index.html` —, que haviam sumido quando o PR da migração para PostgreSQL (#17) reescreveu `src/db.js` e `src/repositorio.js` a partir de uma base anterior ao PR das categorias (#15); com isso, nenhuma doação podia ser publicada. Também ajustou `tests/paridade-postgres.test.js` e `scripts/testar-fluxos.mjs` (que publicavam sem categoria) e escreveu `tests/categorias.test.js`.
+- *Documentos:* redigiu e formatou `docs/demo.md` e `docs/validacao.md` a partir da leitura do repositório (README, `docs/analise.md`, código e testes).
+
+**O que foi verificado:**
+
+- *Pela IA, ao gerar:* a falha foi reproduzida no código original (`repo.listarCategorias is not a function`; a tela não envia categoria e recebe “categoria é obrigatória”); depois da correção, as regras de negócio e o SQL foram executados num PostgreSQL 16 local — cadastro com e sem categoria, categoria inválida, validade ausente, aceite e aceite repetido, coleta, ER1 a ER4, relatório, cancelamento, ids fora do intervalo do banco e migração de um schema antigo. **Não foram executados** a camada HTTP (rotas do Express) nem o Vitest, porque o ambiente da IA não tinha `node_modules` nem rede para instalá-los.
+- *Pelo grupo:* [preencher — por exemplo: rodamos `npm test` e conferimos os resultados acima; um integrante que não escreveu o roteiro executou `docs/demo.md` num clone novo].
+
+**O que alteramos em relação ao que a IA gerou:** [preencher após revisar — ou escrever “nada”].
