@@ -241,7 +241,8 @@
       margin-bottom: 7px;
     }
 
-    input {
+    input,
+    select {
       width: 100%;
 
       padding: 13px 14px;
@@ -255,9 +256,11 @@
       outline: none;
 
       transition: 0.2s;
+      background: white;
     }
 
-    input:focus {
+    input:focus,
+    select:focus {
       border-color: #2e7d4f;
 
       box-shadow:
@@ -732,6 +735,19 @@
             maxlength="80"
             required
           >
+
+        </div>
+
+
+        <div class="campo">
+
+          <label for="categoria">
+            Categoria
+          </label>
+
+          <select id="categoria" required>
+            <option value="">Selecione…</option>
+          </select>
 
         </div>
 
@@ -1283,6 +1299,9 @@
             .value
             .trim(),
 
+        categoriaId:
+          document.getElementById('categoria').value,
+
         quantidade:
           document
             .getElementById('quantidade')
@@ -1464,7 +1483,25 @@
     }
   }
 
+  // Preenche o seletor de categorias (H7) a partir da API.
+  async function carregarCategorias() {
+    const seletor = document.getElementById('categoria');
+    try {
+      const resposta = await fetch('/api/categorias');
+      const categorias = await processarResposta(resposta);
+      for (const categoria of categorias) {
+        const opcao = document.createElement('option');
+        opcao.value = categoria.id;
+        opcao.textContent = categoria.nome;
+        seletor.append(opcao);
+      }
+    } catch (erro) {
+      mostrarToast(`Não foi possível carregar as categorias: ${erro.message}`, true);
+    }
+  }
+
   inputMes.addEventListener('change', carregarRelatorio);
+  carregarCategorias();
   carregarDoacoes();
   carregarColetas();
   carregarRelatorio();
