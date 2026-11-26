@@ -96,12 +96,19 @@ A IA pode participar da produção, mas o grupo é responsável por verificar, t
 corrigir e **defender** o resultado. Registre em cada Pull Request o que foi gerado
 com IA e o que vocês alteraram.
 
+
 ## Definição de pronto
 
-Pronto, no nosso grupo, é:
+Uma fatia só está pronta para integração quando atende a todos os critérios abaixo:
 
-- [ ] O CI do Pull Request terminou sem falhas — onde se confere: aba **Checks** do PR no GitHub.
-- [ ] O Pull Request foi aprovado por um integrante que não é seu autor — onde se confere: aba **Reviews** do PR no GitHub.
-- [ ] A fatia implementada atende ao critério de aceite documentado — onde se confere: descrição do PR e resultados reproduzíveis em **Tests/Checks**.
-- [ ] Os testes automatizados relacionados à fatia estão presentes e aprovados — onde se confere: arquivos em `tests/` e aba **Checks** do PR.
-- [ ] A descrição do PR registra a história, as fatias, a verificação e o uso de IA — onde se confere: descrição do Pull Request.
+| Critério | Onde conferir |
+|---|---|
+| Critérios de aceite e casos limites possuem testes automatizados. | Arquivos em `tests/`. |
+| Todos os testes passam sobre PostgreSQL. | `npm test` e GitHub Actions. |
+| A alteração foi revisada por outro integrante. | Aprovação do Pull Request. |
+| A funcionalidade funciona no navegador do celular. | `docs/demo.md`. |
+| Os critérios de aceite e as decisões estão documentados. | `docs/validacao.md` e `docs/projeto.md`. |
+| O uso de IA e as verificações realizadas estão registrados. | Seção Uso de IA do Pull Request. |
+
+Após a integração, o CI da main deve permanecer verde. Caso contrário, novas integrações devem ser interrompidas até a correção da falha.
+
