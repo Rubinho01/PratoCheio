@@ -1,4 +1,5 @@
 // Regras de negócio da História Zero (H0)
+// Regras de negócio da História Zero (H0)
 import * as repo from './repositorio.js';
 
 // Valida campos de texto obrigatórios
@@ -84,8 +85,10 @@ export async function listarDoDoador(doador) {
 // H0 - ONG visualiza somente as doações disponíveis
 export async function listarDisponiveis() {
   return repo.listarDisponiveis();
+  return repo.listarDisponiveis();
 }
 
+// H0 - ONG aceita uma doação
 // H0 - ONG aceita uma doação
 export async function aceitar(id, ong) {
 

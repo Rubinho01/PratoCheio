@@ -86,16 +86,53 @@ peça a revisão de **outro integrante**. Só então faça o merge.
 
 ## O que já está pronto e o que falta
 
-Pronto: estrutura do projeto, interface básica, rota de saúde, **conexão com o banco e o schema** (`src/db.js`), CI configurado e um teste passando (prova que a aplicação sobe).
+Pronto: estrutura do projeto, interface básica, rota de saúde, banco SQLite, CI, H0 (publicação e aceite), visualização do doador, cancelamento antes do aceite, consulta de retirada, **confirmação da coleta por voluntários** e **relatório mensal de aceites**. Os testes de regressão da H0 estão em `tests/doacoes.test.js` e os testes dos incrementos em `tests/novas-historias.test.js`.
 
-Falta (Trabalho 1 — walking skeleton): implementar `src/doacoes.js` (regras) e
-`src/repositorio.js` (SQL) para que a história zero funcione ponta a ponta —
-**um doador publica uma doação → uma ONG vê a doação → a ONG a aceita e ela sai da lista.**
-Os critérios de aceite estão em `tests/doacoes.test.js` como `it.todo`: troque cada um
-por um teste de verdade conforme implementa.
+Pendente para versões futuras: autenticação e permissões, sincronização de coletas offline e migração da persistência para PostgreSQL, conforme o planejamento de arquitetura do grupo.
 
 ## Uso de IA
 
 A IA pode participar da produção, mas o grupo é responsável por verificar, testar,
 corrigir e **defender** o resultado. Registre em cada Pull Request o que foi gerado
 com IA e o que vocês alteraram.
+
+## Incrementos — coleta pelo voluntário e relatório da Marta
+
+A stack permanece a mesma: **Node.js 22.13+, Express, SQLite (`node:sqlite`), HTML/CSS/JavaScript puro e Vitest/Supertest**.
+
+### Fluxo de coleta
+
+1. O doador cadastra a doação (incluindo `enderecoRetirada`).
+2. Uma ONG aceita a doação e ela passa de `disponivel` para `aceita`; o sistema registra `aceita_em`.
+3. O voluntário abre a seção **Confirmar coleta**, informa seu nome e clica em **Marcar coletada** numa doação aceita.
+4. A doação muda para `coletada`, mantendo `aceita_em`, e registra `voluntario` e `coletada_em`. Ela deixa de aparecer entre as coletas pendentes.
+
+Somente doações com status `aceita` podem ser coletadas. Uma segunda confirmação é recusada sem sobrescrever os dados da primeira. A consulta de endereço continua restrita ao fluxo já existente da ONG que aceitou, inclusive após a coleta. A listagem pública de pendentes e a resposta da confirmação de coleta não expõem o endereço.
+
+### Relatório mensal da Marta
+
+A seção **Relatório da Marta** permite escolher o mês em `AAAA-MM` e informa quantas doações **foram aceitas nesse mês**, incluindo as que já foram coletadas. O mês é calculado pela coluna `aceita_em`, **não** por `criada_em` nem pelo estado atual. Datas do relatório seguem **UTC**, conforme os timestamps registrados pelo SQLite.
+
+### Endpoints adicionados
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/api/doacoes/pendentes-coleta` | Lista doações com status `aceita`, sem endereço de retirada. |
+| `POST` | `/api/doacoes/:id/coletar` | JSON `{ "voluntario": "Ana Silva" }`; confirma uma coleta. |
+| `GET` | `/api/relatorios/aceites?mes=2026-10` | Retorna `{ "mes": "2026-10", "totalAceitas": 2 }` (valor ilustrativo). Omitir `mes` consulta o mês atual em UTC. |
+
+Os erros de validação e de transição de estado retornam HTTP 400, no mesmo padrão das rotas já existentes.
+
+### Migração e testes
+
+A migração (`npm run db:migrar`, também executada no `npm start`) adiciona as colunas `aceita_em`, `coletada_em` e `voluntario` aos bancos existentes **sem apagar doações**. Para doações que já estavam aceitas antes dessa alteração, como o instante real do aceite não era registrado, a migração usa `criada_em` como aproximação para `aceita_em`; portanto **relatórios históricos anteriores à implantação podem ser aproximados**. A execução repetida da migração é segura.
+
+```bash
+npm install
+npm run db:migrar
+npm test           # suíte Vitest + Supertest (depende de npm install)
+npm run test:smoke # valida regras + migração em banco temporário, sem dependências externas
+npm run dev        # acesse http://localhost:3000
+```
+
+**Importante sobre autorização:** o repositório original não possui autenticação nem perfis. Essas novas seções seguem essa limitação: o nome do voluntário é informado no formulário e o relatório não é restrito exclusivamente à Marta. Para uso real, será necessário implementar login, permissões e vínculo entre voluntário e ONG.

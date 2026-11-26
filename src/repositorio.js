@@ -1,10 +1,3 @@
-// Camada de acesso ao banco de dados (PostgreSQL: marcadores $1, $2, …)
-import { query, AGORA_UTC } from './db.js';
-
-
-const ID_MAXIMO = 2147483647;
-const idPossivel = (id) => Number.isInteger(id) && id >= 1 && id <= ID_MAXIMO;
-
 // Insere uma nova doação
 export async function inserir({
   tipo,
@@ -81,6 +74,7 @@ export async function listarDisponiveis() {
   return rows;
 }
 
+// Busca uma doação pelo ID
 // Busca uma doação pelo ID
 export async function buscarPorId(id) {
 
